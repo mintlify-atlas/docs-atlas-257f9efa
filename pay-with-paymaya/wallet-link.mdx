@@ -1,0 +1,449 @@
+---
+title: "Wallet Link for Recurring Payments"
+description: "Create wallet links to enable recurring charges to customer PayMaya accounts"
+---
+
+## Overview
+
+Wallet Link creates a connection to a customer's PayMaya wallet that allows you to charge their account later. This is essential for implementing recurring payments, subscriptions, and stored payment methods.
+
+## What is Wallet Link?
+
+A Wallet Link is a secure connection between your application and a customer's PayMaya wallet. Once established, you can use the `linkId` to charge the customer's wallet for future transactions without requiring them to go through the payment flow each time.
+
+## Use Cases
+
+- **Subscription Services**: Monthly or yearly subscription billing
+- **Recurring Billing**: Regular charges for services (utilities, memberships)
+- **Auto-Payments**: Automatic payment of recurring bills
+- **Stored Payment Methods**: Save payment method for future purchases
+- **Delayed Charges**: Charge customer after service delivery
+
+## Client Initialization
+
+Create a `PayWithPayMaya` client:
+
+```kotlin
+import com.paymaya.sdk.android.paywithpaymaya.PayWithPayMaya
+import com.paymaya.sdk.android.common.LogLevel
+import com.paymaya.sdk.android.common.PayMayaEnvironment
+
+val payWithPayMayaClient = PayWithPayMaya.newBuilder()
+    .clientPublicKey("your_public_key")
+    .environment(PayMayaEnvironment.SANDBOX)
+    .logLevel(LogLevel.ERROR)
+    .build()
+```
+
+<Note>
+The client configuration is the same for both Single Payment and Wallet Link. You can use a single client instance for both operations.
+</Note>
+
+## Creating a CreateWalletLinkRequest
+
+Create a request to initiate the wallet linking process:
+
+```kotlin
+import com.paymaya.sdk.android.paywithpaymaya.models.CreateWalletLinkRequest
+import com.paymaya.sdk.android.common.models.RedirectUrl
+import org.json.JSONObject
+
+val request = CreateWalletLinkRequest(
+    requestReferenceNumber = "LINK-${System.currentTimeMillis()}",
+    redirectUrl = RedirectUrl(
+        success = "http://success.com",
+        failure = "http://failure.com",
+        cancel = "http://cancel.com"
+    ),
+    metadata = JSONObject().apply {
+        put("userId", "12345")
+        put("subscriptionType", "premium")
+    }
+)
+```
+
+### Request Parameters
+
+#### requestReferenceNumber (Required)
+
+A unique identifier for this wallet link request:
+
+```kotlin
+val requestReferenceNumber = "LINK-${System.currentTimeMillis()}"
+```
+
+<Warning>
+Ensure each wallet link request has a unique `requestReferenceNumber`.
+</Warning>
+
+#### redirectUrl (Required)
+
+Redirect URLs for the linking process:
+
+```kotlin
+val redirectUrl = RedirectUrl(
+    success = "https://yourapp.com/link-success",
+    failure = "https://yourapp.com/link-failure",
+    cancel = "https://yourapp.com/link-cancel"
+)
+```
+
+<Note>
+These URLs are required by the API but not used for actual redirects in the Android SDK. Results are returned via `onActivityResult()`.
+</Note>
+
+#### metadata (Optional)
+
+Custom data to associate with this wallet link:
+
+```kotlin
+val metadata = JSONObject().apply {
+    put("userId", "12345")
+    put("customerId", "cust-789")
+    put("subscriptionPlan", "premium-monthly")
+    put("startDate", "2024-01-01")
+}
+```
+
+## Starting the Wallet Link Flow
+
+Call `startCreateWalletLinkActivityForResult()` to launch the linking WebView:
+
+```kotlin
+payWithPayMayaClient.startCreateWalletLinkActivityForResult(this, request)
+```
+
+### Method Signature
+
+```kotlin
+fun startCreateWalletLinkActivityForResult(
+    activity: Activity,
+    request: CreateWalletLinkRequest
+)
+```
+
+## Handling Wallet Link Results
+
+Process results in `onActivityResult()`:
+
+```kotlin
+import android.content.Intent
+import com.paymaya.sdk.android.paywithpaymaya.CreateWalletLinkResult
+
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    payWithPayMayaClient.onActivityResult(requestCode, resultCode, data)?.let { result ->
+        when (result) {
+            is CreateWalletLinkResult.Success -> {
+                val linkId = result.linkId
+                saveLinkId(linkId)
+                showSuccess("Wallet linked successfully! ID: $linkId")
+            }
+            
+            is CreateWalletLinkResult.Cancel -> {
+                val linkId = result.linkId  // May be null
+                showCancel("Wallet linking canceled")
+            }
+            
+            is CreateWalletLinkResult.Failure -> {
+                val linkId = result.linkId  // May be null
+                val exception = result.exception
+                showError("Linking failed: ${exception.message}")
+            }
+        }
+    }
+}
+```
+
+### Result Types
+
+#### CreateWalletLinkResult.Success
+
+Wallet link created successfully:
+
+```kotlin
+is CreateWalletLinkResult.Success -> {
+    val linkId: String = result.linkId
+    // IMPORTANT: Save this linkId for future charges
+    saveLinkIdToBackend(linkId)
+}
+```
+
+**Properties:**
+- `linkId: String` - Unique identifier for this wallet link. Use this for future charges.
+
+<Warning>
+The `linkId` is critical for recurring payments. Always save it securely in your backend database.
+</Warning>
+
+#### CreateWalletLinkResult.Cancel
+
+Wallet linking was canceled:
+
+```kotlin
+is CreateWalletLinkResult.Cancel -> {
+    val linkId: String? = result.linkId
+    // Handle cancellation
+}
+```
+
+**Properties:**
+- `linkId: String?` - Link ID if available, or `null`
+
+#### CreateWalletLinkResult.Failure
+
+Wallet linking failed:
+
+```kotlin
+is CreateWalletLinkResult.Failure -> {
+    val linkId: String? = result.linkId
+    val exception: Exception = result.exception
+    // Handle error
+}
+```
+
+**Properties:**
+- `linkId: String?` - Link ID if available, or `null`
+- `exception: Exception` - Exception with failure details
+
+## Complete Example
+
+```kotlin
+import android.app.Activity
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
+import com.paymaya.sdk.android.common.LogLevel
+import com.paymaya.sdk.android.common.PayMayaEnvironment
+import com.paymaya.sdk.android.common.models.RedirectUrl
+import com.paymaya.sdk.android.paywithpaymaya.CreateWalletLinkResult
+import com.paymaya.sdk.android.paywithpaymaya.PayWithPayMaya
+import com.paymaya.sdk.android.paywithpaymaya.models.CreateWalletLinkRequest
+import org.json.JSONObject
+
+class WalletLinkActivity : Activity() {
+
+    private val payWithPayMayaClient = PayWithPayMaya.newBuilder()
+        .clientPublicKey("pk-MOfNKu3FmHMVHtjyjG7vhr7vFevRkWxmxYL1Yq6iFk5")
+        .environment(PayMayaEnvironment.SANDBOX)
+        .logLevel(LogLevel.WARN)
+        .build()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Setup UI with "Link Wallet" button
+    }
+
+    private fun startWalletLinking() {
+        val request = CreateWalletLinkRequest(
+            requestReferenceNumber = "LINK-${System.currentTimeMillis()}",
+            redirectUrl = RedirectUrl(
+                success = "http://success.com",
+                failure = "http://failure.com",
+                cancel = "http://cancel.com"
+            ),
+            metadata = JSONObject().apply {
+                put("userId", "12345")
+                put("subscriptionType", "premium")
+            }
+        )
+
+        payWithPayMayaClient.startCreateWalletLinkActivityForResult(this, request)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        payWithPayMayaClient.onActivityResult(requestCode, resultCode, data)?.let { result ->
+            processWalletLinkResult(result)
+        }
+    }
+
+    private fun processWalletLinkResult(result: CreateWalletLinkResult) {
+        when (result) {
+            is CreateWalletLinkResult.Success -> {
+                val message = "Wallet linked successfully! ID: ${result.linkId}"
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                Log.i(TAG, message)
+                
+                // CRITICAL: Save link ID for future charges
+                saveLinkIdToBackend(result.linkId)
+                
+                // Update UI to show wallet is linked
+                navigateToSubscriptionScreen(result.linkId)
+            }
+
+            is CreateWalletLinkResult.Cancel -> {
+                val message = "Wallet linking canceled. ID: ${result.linkId}"
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                Log.w(TAG, message)
+                
+                // Return to previous screen
+                finish()
+            }
+
+            is CreateWalletLinkResult.Failure -> {
+                val message = "Linking failed: ${result.exception.message}"
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                Log.e(TAG, "Linking failed. ID: ${result.linkId}", result.exception)
+                
+                // Show error dialog with retry option
+                showErrorDialog(result.exception.message)
+            }
+        }
+    }
+
+    private fun saveLinkIdToBackend(linkId: String) {
+        // Save to your backend database
+        // Associate with user account for future charges
+        Log.i(TAG, "Saving linkId to backend: $linkId")
+    }
+
+    private fun navigateToSubscriptionScreen(linkId: String) {
+        // Navigate to subscription management screen
+    }
+
+    private fun showErrorDialog(message: String?) {
+        // Show error dialog with retry option
+    }
+
+    companion object {
+        private const val TAG = "WalletLinkActivity"
+    }
+}
+```
+
+## Using the Link ID for Recurring Payments
+
+After successfully creating a wallet link, use the `linkId` to charge the customer's wallet:
+
+<Steps>
+  <Step title="Store Link ID">
+    Save the `linkId` in your backend database, associated with the customer account
+  </Step>
+  <Step title="Initiate Charge">
+    When you need to charge the customer, make a server-side API call to PayMaya using the `linkId`
+  </Step>
+  <Step title="Process Payment">
+    PayMaya will charge the customer's wallet using the linked account
+  </Step>
+  <Step title="Handle Result">
+    Process the payment result from your backend
+  </Step>
+</Steps>
+
+<Note>
+The actual charging of a linked wallet is done through server-side API calls, not through the Android SDK. The SDK is only used to create the wallet link.
+</Note>
+
+## Best Practices
+
+### Securely Store Link ID
+
+```kotlin
+is CreateWalletLinkResult.Success -> {
+    // Store in backend, not just locally
+    api.saveLinkId(
+        userId = currentUserId,
+        linkId = result.linkId,
+        createdAt = System.currentTimeMillis()
+    )
+}
+```
+
+### Associate with User Account
+
+```kotlin
+data class WalletLink(
+    val linkId: String,
+    val userId: String,
+    val createdAt: Long,
+    val status: String,
+    val metadata: Map<String, Any>
+)
+
+private fun saveLinkIdToBackend(linkId: String) {
+    val walletLink = WalletLink(
+        linkId = linkId,
+        userId = currentUser.id,
+        createdAt = System.currentTimeMillis(),
+        status = "active",
+        metadata = mapOf(
+            "subscriptionType" to "premium",
+            "deviceId" to getDeviceId()
+        )
+    )
+    backend.saveWalletLink(walletLink)
+}
+```
+
+### Handle Expiration
+
+```kotlin
+// Wallet links may expire or be revoked
+// Always handle payment failures gracefully
+private fun chargeWalletLink(linkId: String, amount: BigDecimal) {
+    try {
+        val result = backend.chargeLinkedWallet(linkId, amount)
+        if (result.isFailure && result.error == "LINK_EXPIRED") {
+            // Prompt user to re-link wallet
+            showRelinkDialog()
+        }
+    } catch (e: Exception) {
+        handleChargeError(e)
+    }
+}
+```
+
+### Provide Clear Communication
+
+```kotlin
+private fun showWalletLinkInfo() {
+    showDialog(
+        title = "Link PayMaya Wallet",
+        message = "Link your PayMaya wallet to enable automatic subscription payments. " +
+                  "You will be able to manage or remove this link at any time.",
+        positiveButton = "Continue" to { startWalletLinking() },
+        negativeButton = "Cancel" to { finish() }
+    )
+}
+```
+
+### Allow Link Management
+
+```kotlin
+// Provide UI to view and remove wallet links
+class LinkedWalletsActivity : Activity() {
+    
+    private fun showLinkedWallets() {
+        val links = backend.getWalletLinks(currentUserId)
+        // Display list of linked wallets
+        // Allow user to remove links
+    }
+    
+    private fun removeLinkId(linkId: String) {
+        backend.removeLinkId(linkId)
+        showSuccess("Wallet link removed")
+    }
+}
+```
+
+## Security Considerations
+
+<Warning>
+**Important Security Practices:**
+- Store `linkId` only in your secure backend, not in local storage
+- Use HTTPS for all API calls involving `linkId`
+- Implement proper authentication before allowing wallet charges
+- Log all wallet link operations for audit purposes
+- Notify users of successful charges via email/push notification
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Single Payment" icon="credit-card" href="/pay-with-paymaya/single-payment">
+    Process one-time PayMaya wallet payments
+  </Card>
+  <Card title="Vault" icon="lock" href="/vault/overview">
+    Learn about card tokenization
+  </Card>
+</CardGroup>

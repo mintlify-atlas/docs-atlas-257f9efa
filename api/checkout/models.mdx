@@ -1,0 +1,410 @@
+---
+title: Checkout Models
+description: Supporting data models for checkout requests
+---
+
+## Overview
+
+This page documents the supporting models used in checkout requests, including buyer information, items, amounts, and other related data structures.
+
+## Address
+
+Represents a buyer's address.
+
+```kotlin
+data class Address(
+    val line1: String? = null,
+    val line2: String? = null,
+    val city: String? = null,
+    val state: String? = null,
+    val zipCode: String? = null,
+    val countryCode: String? = null
+)
+```
+
+<ParamField path="line1" type="String?">
+  Address line 1. Optional.
+</ParamField>
+
+<ParamField path="line2" type="String?">
+  Address line 2. Optional.
+</ParamField>
+
+<ParamField path="city" type="String?">
+  City. Optional.
+</ParamField>
+
+<ParamField path="state" type="String?">
+  State or Province. Optional.
+</ParamField>
+
+<ParamField path="zipCode" type="String?">
+  Zip code or postal code. Optional.
+</ParamField>
+
+<ParamField path="countryCode" type="String?">
+  ISO 3166-2 country code (e.g., "PH" for Philippines). Optional.
+</ParamField>
+
+### Example
+
+```kotlin
+val address = Address(
+    line1 = "123 Main Street",
+    line2 = "Unit 456",
+    city = "Makati",
+    state = "Metro Manila",
+    zipCode = "1200",
+    countryCode = "PH"
+)
+```
+
+---
+
+## Buyer
+
+Represents the entity that bought items from the merchant's shop. When provided, must have at least one populated field.
+
+```kotlin
+data class Buyer(
+    val firstName: String? = null,
+    val middleName: String? = null,
+    val lastName: String? = null,
+    val contact: Contact? = null,
+    val shippingAddress: Address? = null,
+    val billingAddress: Address? = null,
+    @Deprecated(message = "Deprecated")
+    val ipAddress: String? = null
+)
+```
+
+<ParamField path="firstName" type="String?">
+  First name of the buyer. Optional.
+</ParamField>
+
+<ParamField path="middleName" type="String?">
+  Middle name of the buyer. Optional.
+</ParamField>
+
+<ParamField path="lastName" type="String?">
+  Last name of the buyer. Optional.
+</ParamField>
+
+<ParamField path="contact" type="Contact?">
+  Contact details of the buyer. Optional.
+</ParamField>
+
+<ParamField path="shippingAddress" type="Address?">
+  Shipping address of the buyer. Optional.
+</ParamField>
+
+<ParamField path="billingAddress" type="Address?">
+  Billing address of the buyer. Optional.
+</ParamField>
+
+<ParamField path="ipAddress" type="String?" deprecated>
+  IPv4 address of the buyer who issued the cart checkout. Deprecated.
+</ParamField>
+
+### Example
+
+```kotlin
+val buyer = Buyer(
+    firstName = "Juan",
+    lastName = "Dela Cruz",
+    contact = Contact(
+        email = "juan@example.com",
+        phone = "+639171234567"
+    ),
+    shippingAddress = Address(
+        line1 = "123 Main Street",
+        city = "Makati",
+        state = "Metro Manila",
+        zipCode = "1200",
+        countryCode = "PH"
+    )
+)
+```
+
+---
+
+## Contact
+
+Buyer's contact details. If the email field is provided, a payment receipt will be sent to the email address.
+
+```kotlin
+data class Contact(
+    val phone: String? = null,
+    val email: String? = null
+)
+```
+
+<ParamField path="phone" type="String?">
+  Phone number of the buyer. Optional.
+</ParamField>
+
+<ParamField path="email" type="String?">
+  Valid email address of the buyer. If provided, a payment receipt will be sent to this address. Optional.
+</ParamField>
+
+### Example
+
+```kotlin
+val contact = Contact(
+    phone = "+639171234567",
+    email = "customer@example.com"
+)
+```
+
+---
+
+## Item
+
+Represents an entity that can be purchased from a merchant's shop.
+
+```kotlin
+data class Item(
+    val name: String,
+    val quantity: Int? = null,
+    val code: String? = null,
+    val description: String? = null,
+    val amount: ItemAmount? = null,
+    val totalAmount: TotalAmount
+)
+```
+
+<ParamField path="name" type="String" required>
+  Item's product name.
+</ParamField>
+
+<ParamField path="quantity" type="Int?">
+  Item's quantity. Optional.
+</ParamField>
+
+<ParamField path="code" type="String?">
+  Item's SKU code or product identifier. Optional.
+</ParamField>
+
+<ParamField path="description" type="String?">
+  Item's description. Optional.
+</ParamField>
+
+<ParamField path="amount" type="ItemAmount?">
+  Item's unit price. Optional.
+</ParamField>
+
+<ParamField path="totalAmount" type="TotalAmount" required>
+  Item's total price (unit price × quantity).
+</ParamField>
+
+### Example
+
+```kotlin
+val item = Item(
+    name = "Wireless Mouse",
+    quantity = 2,
+    code = "MOUSE-001",
+    description = "Ergonomic wireless mouse",
+    amount = ItemAmount(
+        value = BigDecimal("500.00")
+    ),
+    totalAmount = TotalAmount(
+        value = BigDecimal("1000.00"),
+        currency = "PHP"
+    )
+)
+```
+
+---
+
+## ItemAmount
+
+Details about each item's amount.
+
+```kotlin
+data class ItemAmount(
+    val value: BigDecimal,
+    val details: AmountDetails? = null
+)
+```
+
+<ParamField path="value" type="BigDecimal" required>
+  Payment amount for the item (unit price).
+</ParamField>
+
+<ParamField path="details" type="AmountDetails?">
+  Breakdown of fees for this item. Optional.
+</ParamField>
+
+### Example
+
+```kotlin
+val itemAmount = ItemAmount(
+    value = BigDecimal("100.00"),
+    details = AmountDetails(
+        subtotal = BigDecimal("90.00"),
+        tax = BigDecimal("10.00")
+    )
+)
+```
+
+---
+
+## TotalAmount
+
+Contains information about transaction amount: value, currency, and included fees.
+
+```kotlin
+data class TotalAmount(
+    val value: BigDecimal,
+    val currency: String,
+    val details: AmountDetails? = null
+)
+```
+
+<ParamField path="value" type="BigDecimal" required>
+  Payment amount to be charged.
+</ParamField>
+
+<ParamField path="currency" type="String" required>
+  Currency code (e.g., "PHP", "USD").
+</ParamField>
+
+<ParamField path="details" type="AmountDetails?">
+  Breakdown of fees. Optional.
+</ParamField>
+
+### Example
+
+```kotlin
+val totalAmount = TotalAmount(
+    value = BigDecimal("1250.00"),
+    currency = "PHP",
+    details = AmountDetails(
+        subtotal = BigDecimal("1000.00"),
+        tax = BigDecimal("120.00"),
+        shippingFee = BigDecimal("130.00")
+    )
+)
+```
+
+---
+
+## AmountDetails
+
+Breakdown of fees and charges. In the checkout process, the merchant can optionally provide these details. If provided, they will be displayed on the Checkout Page for the buyer to review.
+
+```kotlin
+data class AmountDetails(
+    val discount: BigDecimal? = null,
+    val serviceCharge: BigDecimal? = null,
+    val shippingFee: BigDecimal? = null,
+    val tax: BigDecimal? = null,
+    val subtotal: BigDecimal? = null
+)
+```
+
+<ParamField path="discount" type="BigDecimal?">
+  Discount amount applied. Optional.
+</ParamField>
+
+<ParamField path="serviceCharge" type="BigDecimal?">
+  Service charge amount. Optional.
+</ParamField>
+
+<ParamField path="shippingFee" type="BigDecimal?">
+  Shipping fee amount. Optional.
+</ParamField>
+
+<ParamField path="tax" type="BigDecimal?">
+  Tax amount. Optional.
+</ParamField>
+
+<ParamField path="subtotal" type="BigDecimal?">
+  Subtotal before additional fees. Optional.
+</ParamField>
+
+### Example
+
+```kotlin
+val amountDetails = AmountDetails(
+    subtotal = BigDecimal("1000.00"),
+    discount = BigDecimal("100.00"),
+    shippingFee = BigDecimal("200.00"),
+    tax = BigDecimal("150.00"),
+    serviceCharge = BigDecimal("50.00")
+)
+```
+
+---
+
+## RedirectUrl
+
+Redirect URL model defining URLs used to redirect to specific pages once the payment process is complete.
+
+```kotlin
+data class RedirectUrl(
+    val success: String,
+    val failure: String,
+    val cancel: String
+)
+```
+
+<ParamField path="success" type="String" required>
+  URL to redirect to when payment is successful.
+</ParamField>
+
+<ParamField path="failure" type="String" required>
+  URL to redirect to when payment fails.
+</ParamField>
+
+<ParamField path="cancel" type="String" required>
+  URL to redirect to when payment is canceled.
+</ParamField>
+
+### Example
+
+```kotlin
+val redirectUrl = RedirectUrl(
+    success = "https://example.com/payment/success",
+    failure = "https://example.com/payment/failure",
+    cancel = "https://example.com/payment/cancel"
+)
+```
+
+---
+
+## AuthorizationType
+
+Enum representing the type of authorization for the payment.
+
+```kotlin
+enum class AuthorizationType {
+    NORMAL,
+    FINAL,
+    PREAUTHORIZATION
+}
+```
+
+### Values
+
+<ParamField path="NORMAL" type="AuthorizationType">
+  Standard authorization type.
+</ParamField>
+
+<ParamField path="FINAL" type="AuthorizationType">
+  Final authorization - the payment will be captured immediately.
+</ParamField>
+
+<ParamField path="PREAUTHORIZATION" type="AuthorizationType">
+  Pre-authorization - the payment will be authorized but not captured until later.
+</ParamField>
+
+### Example
+
+```kotlin
+val request = CheckoutRequest(
+    // ... other properties ...
+    authorizationType = AuthorizationType.PREAUTHORIZATION
+)
+```

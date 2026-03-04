@@ -1,0 +1,95 @@
+---
+title: PayMayaVaultResult
+description: Sealed class representing the result of card tokenization
+---
+
+`PayMayaVaultResult` is a sealed class that represents the outcome of the card tokenization process. It has two variants: `Success` and `Cancel`.
+
+## Success
+
+Represents a successful card tokenization.
+
+```kotlin
+class Success internal constructor(
+    val paymentTokenId: String,
+    val state: String,
+    val createdAt: String,
+    val updatedAt: String,
+    val issuer: String
+) : PayMayaVaultResult()
+```
+
+### Properties
+
+<ParamField path="paymentTokenId" type="String">
+  The unique identifier for the payment token. Use this token to process payments or add the card to a customer profile.
+</ParamField>
+
+<ParamField path="state" type="String">
+  The current state of the payment token.
+</ParamField>
+
+<ParamField path="createdAt" type="String">
+  The timestamp when the payment token was created.
+</ParamField>
+
+<ParamField path="updatedAt" type="String">
+  The timestamp when the payment token was last updated.
+</ParamField>
+
+<ParamField path="issuer" type="String">
+  The card issuer (e.g., Visa, Mastercard, JCB).
+</ParamField>
+
+## Cancel
+
+Represents a canceled card tokenization process (user dismissed the screen).
+
+```kotlin
+object Cancel : PayMayaVaultResult()
+```
+
+This variant has no properties. It simply indicates that the user canceled the tokenization flow.
+
+## Example Usage
+
+```kotlin
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    
+    val result = vault.onActivityResult(requestCode, resultCode, data)
+    when (result) {
+        is PayMayaVaultResult.Success -> {
+            // Tokenization successful
+            val tokenId = result.paymentTokenId
+            val issuer = result.issuer
+            
+            Log.d("Vault", "Success! Token: $tokenId, Issuer: $issuer")
+            Log.d("Vault", "Created: ${result.createdAt}")
+            
+            // Use the token for payment
+            processPayment(tokenId)
+        }
+        is PayMayaVaultResult.Cancel -> {
+            // User canceled the flow
+            Log.d("Vault", "Tokenization canceled by user")
+            Toast.makeText(this, "Card tokenization canceled", Toast.LENGTH_SHORT).show()
+        }
+        null -> {
+            // Result is not from vault activity
+        }
+    }
+}
+
+private fun processPayment(tokenId: String) {
+    // Use the token to process a payment
+    // The token is valid for single use only
+}
+```
+
+## Notes
+
+- The `Success` constructor is marked as `internal`, so you cannot create instances directly. You receive them from the vault activity result.
+- The payment token is valid for a limited time and is single-use only.
+- Always handle both `Success` and `Cancel` cases when processing results.
+- The `null` case indicates the result is from a different activity.

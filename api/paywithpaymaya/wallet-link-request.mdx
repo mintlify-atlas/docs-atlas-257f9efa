@@ -1,0 +1,107 @@
+---
+title: CreateWalletLinkRequest
+description: Model for wallet link creation data
+---
+
+The `CreateWalletLinkRequest` data class contains the information required to create a wallet link that allows charging a PayMaya account.
+
+## Type Signature
+
+```kotlin
+data class CreateWalletLinkRequest(
+    val requestReferenceNumber: String,
+    val redirectUrl: RedirectUrl,
+    val metadata: JSONObject? = null
+)
+```
+
+## Properties
+
+<ParamField path="requestReferenceNumber" type="String" required>
+  Reference number assigned by the merchant to identify the wallet link transaction. Must be unique per transaction.
+</ParamField>
+
+<ParamField path="redirectUrl" type="RedirectUrl" required>
+  Set of redirect URLs used upon process completion (success, failure, or cancel)
+</ParamField>
+
+<ParamField path="metadata" type="JSONObject" default="null">
+  Optional metadata for additional information. Can contain custom key-value pairs.
+</ParamField>
+
+## Related Types
+
+### RedirectUrl
+
+```kotlin
+data class RedirectUrl(
+    val success: String,
+    val failure: String,
+    val cancel: String
+)
+```
+
+**Properties:**
+- `success` (String, required) - URL to redirect on successful wallet link creation
+- `failure` (String, required) - URL to redirect on failure
+- `cancel` (String, required) - URL to redirect when cancelled
+
+## Example
+
+```kotlin
+import com.paymaya.sdk.android.paywithpaymaya.models.CreateWalletLinkRequest
+import com.paymaya.sdk.android.common.models.RedirectUrl
+import org.json.JSONObject
+
+val request = CreateWalletLinkRequest(
+    requestReferenceNumber = "WALLET-LINK-12345",
+    redirectUrl = RedirectUrl(
+        success = "myapp://walletlink/success",
+        failure = "myapp://walletlink/failure",
+        cancel = "myapp://walletlink/cancel"
+    ),
+    metadata = JSONObject().apply {
+        put("customerId", "67890")
+        put("linkPurpose", "subscription")
+    }
+)
+
+payWithPayMaya.startCreateWalletLinkActivityForResult(this, request)
+```
+
+## Usage with Deep Links
+
+Redirect URLs can use custom URL schemes for deep linking back to your app:
+
+```kotlin
+val redirectUrl = RedirectUrl(
+    success = "myapp://walletlink/success",
+    failure = "myapp://walletlink/failure",
+    cancel = "myapp://walletlink/cancel"
+)
+```
+
+Make sure to register the custom URL scheme in your `AndroidManifest.xml`:
+
+```xml
+<activity android:name=".WalletLinkResultActivity">
+    <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="myapp" android:host="walletlink" />
+    </intent-filter>
+</activity>
+```
+
+## What is a Wallet Link?
+
+A wallet link allows you to charge a customer's PayMaya account for recurring payments or future transactions without requiring them to re-authenticate each time. Once created, you can use the link ID to initiate charges against the linked wallet.
+
+### Typical Flow
+
+1. Create a wallet link using `startCreateWalletLinkActivityForResult()`
+2. Customer authorizes the link in the PayMaya app
+3. Receive the link ID in the [CreateWalletLinkResult](/api/paywithpaymaya/results#createwalletlinkresult)
+4. Store the link ID securely on your backend
+5. Use the link ID for future charges via PayMaya's server-side API

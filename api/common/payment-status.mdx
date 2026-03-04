@@ -1,0 +1,155 @@
+---
+title: PaymentStatus
+description: Payment status enumeration and result types
+---
+
+## Overview
+
+The `PaymentStatus` enum represents the various states a payment transaction can be in throughout its lifecycle.
+
+## PaymentStatus Enum
+
+### Definition
+
+```kotlin
+package com.paymaya.sdk.android.common
+
+enum class PaymentStatus {
+    PENDING_TOKEN,
+    PENDING_PAYMENT,
+    PAYMENT_EXPIRED,
+    FOR_AUTHENTICATION,
+    AUTHENTICATING,
+    AUTH_SUCCESS,
+    AUTH_FAILED,
+    PAYMENT_PROCESSING,
+    PAYMENT_SUCCESS,
+    PAYMENT_FAILED,
+    VOIDED,
+    REFUNDED
+}
+```
+
+### Values
+
+#### PENDING_TOKEN
+
+Token is pending.
+
+#### PENDING_PAYMENT
+
+Initial payment status of the checkout transaction.
+
+#### PAYMENT_EXPIRED
+
+Payment transaction was not executed and expiration time has been reached.
+
+#### FOR_AUTHENTICATION
+
+Payment transaction is waiting for authentication.
+
+#### AUTHENTICATING
+
+Payment transaction is currently authenticating.
+
+#### AUTH_SUCCESS
+
+Authentication has been successfully executed. Authentication may be in the form of 3DS authentication for card transactions.
+
+#### AUTH_FAILED
+
+Authentication of payment has failed.
+
+#### PAYMENT_PROCESSING
+
+Payment is currently processing.
+
+#### PAYMENT_SUCCESS
+
+Payment has been successfully processed.
+
+#### PAYMENT_FAILED
+
+Payment was not successfully processed.
+
+#### VOIDED
+
+A successfully processed payment has been reversed (usually before a settlement cut-off for card-based payments).
+
+#### REFUNDED
+
+A successfully processed payment has been fully or partially reversed (usually after a settlement cut-off for card-based payments).
+
+## CheckPaymentStatusResult
+
+Sealed class representing the result of a payment status check operation.
+
+### Definition
+
+```kotlin
+package com.paymaya.sdk.android.common
+
+sealed class CheckPaymentStatusResult {
+    class Success internal constructor(
+        val status: PaymentStatus
+    ) : CheckPaymentStatusResult()
+
+    object Cancel : CheckPaymentStatusResult()
+
+    class Failure internal constructor(
+        val exception: Exception
+    ) : CheckPaymentStatusResult()
+}
+```
+
+### Result Types
+
+#### Success
+
+Checking payment status succeeded.
+
+**Properties:**
+- `status: PaymentStatus` - The current payment status
+
+#### Cancel
+
+Checking payment status was canceled.
+
+#### Failure
+
+Checking payment status failed.
+
+**Properties:**
+- `exception: Exception` - Exception with detailed reason of the failure
+
+### Usage Example
+
+```kotlin
+when (result) {
+    is CheckPaymentStatusResult.Success -> {
+        when (result.status) {
+            PaymentStatus.PAYMENT_SUCCESS -> {
+                // Handle successful payment
+            }
+            PaymentStatus.PAYMENT_FAILED -> {
+                // Handle failed payment
+            }
+            else -> {
+                // Handle other statuses
+            }
+        }
+    }
+    is CheckPaymentStatusResult.Cancel -> {
+        // Handle cancellation
+    }
+    is CheckPaymentStatusResult.Failure -> {
+        // Handle error
+        val error = result.exception
+    }
+}
+```
+
+## See Also
+
+- [Check Payment Status](/guides/checking-payment-status) - Learn how to check payment status
+- [Exceptions](/api/common/exceptions) - Exception types that may be thrown

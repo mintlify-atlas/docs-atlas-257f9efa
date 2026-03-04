@@ -1,0 +1,192 @@
+---
+title: CheckoutRequest
+description: Request model containing all data required to initiate a checkout payment
+---
+
+## Overview
+
+The `CheckoutRequest` data class contains all information required to initiate a checkout payment, including buyer details, items, transaction amount, and redirect URLs.
+
+## Constructor
+
+```kotlin
+data class CheckoutRequest(
+    val totalAmount: TotalAmount,
+    val buyer: Buyer? = null,
+    val items: List<Item>,
+    val requestReferenceNumber: String,
+    val redirectUrl: RedirectUrl,
+    val metadata: JSONObject? = null,
+    val authorizationType: AuthorizationType? = null
+)
+```
+
+## Properties
+
+<ParamField path="totalAmount" type="TotalAmount" required>
+  Transaction amount details including value, currency, and optional fee breakdown.
+</ParamField>
+
+<ParamField path="buyer" type="Buyer?">
+  Details of the buyer including name, contact information, and addresses. Optional.
+</ParamField>
+
+<ParamField path="items" type="List<Item>" required>
+  List of items being purchased. Must contain at least one item.
+</ParamField>
+
+<ParamField path="requestReferenceNumber" type="String" required>
+  Reference number assigned by the merchant to identify this transaction. Must be unique.
+</ParamField>
+
+<ParamField path="redirectUrl" type="RedirectUrl" required>
+  Set of redirect URLs for success, failure, and cancel scenarios.
+</ParamField>
+
+<ParamField path="metadata" type="JSONObject?">
+  Additional data about the specific checkout. This can be any valid JSON object. Optional.
+</ParamField>
+
+<ParamField path="authorizationType" type="AuthorizationType?">
+  Type of authorization for the payment. Optional. See `AuthorizationType` enum for available values.
+</ParamField>
+
+## Example Usage
+
+### Basic Example
+
+```kotlin
+val request = CheckoutRequest(
+    totalAmount = TotalAmount(
+        value = BigDecimal("100.00"),
+        currency = "PHP"
+    ),
+    items = listOf(
+        Item(
+            name = "Product Name",
+            totalAmount = TotalAmount(
+                value = BigDecimal("100.00"),
+                currency = "PHP"
+            )
+        )
+    ),
+    requestReferenceNumber = "ORDER-123456",
+    redirectUrl = RedirectUrl(
+        success = "https://example.com/success",
+        failure = "https://example.com/failure",
+        cancel = "https://example.com/cancel"
+    )
+)
+```
+
+### Complete Example with Buyer Details
+
+```kotlin
+val request = CheckoutRequest(
+    totalAmount = TotalAmount(
+        value = BigDecimal("250.00"),
+        currency = "PHP",
+        details = AmountDetails(
+            subtotal = BigDecimal("200.00"),
+            shippingFee = BigDecimal("50.00")
+        )
+    ),
+    buyer = Buyer(
+        firstName = "Juan",
+        lastName = "Dela Cruz",
+        contact = Contact(
+            email = "juan@example.com",
+            phone = "+639171234567"
+        ),
+        shippingAddress = Address(
+            line1 = "123 Main Street",
+            city = "Makati",
+            state = "Metro Manila",
+            zipCode = "1200",
+            countryCode = "PH"
+        )
+    ),
+    items = listOf(
+        Item(
+            name = "T-Shirt",
+            quantity = 2,
+            code = "TSHIRT-001",
+            description = "Cotton T-Shirt",
+            amount = ItemAmount(
+                value = BigDecimal("100.00")
+            ),
+            totalAmount = TotalAmount(
+                value = BigDecimal("200.00"),
+                currency = "PHP"
+            )
+        )
+    ),
+    requestReferenceNumber = "ORDER-${System.currentTimeMillis()}",
+    redirectUrl = RedirectUrl(
+        success = "https://example.com/success",
+        failure = "https://example.com/failure",
+        cancel = "https://example.com/cancel"
+    ),
+    metadata = JSONObject().apply {
+        put("orderId", "12345")
+        put("source", "mobile-app")
+    },
+    authorizationType = AuthorizationType.FINAL
+)
+```
+
+### Example with Multiple Items
+
+```kotlin
+val items = listOf(
+    Item(
+        name = "Laptop",
+        quantity = 1,
+        code = "LAPTOP-001",
+        totalAmount = TotalAmount(
+            value = BigDecimal("45000.00"),
+            currency = "PHP"
+        )
+    ),
+    Item(
+        name = "Mouse",
+        quantity = 1,
+        code = "MOUSE-001",
+        totalAmount = TotalAmount(
+            value = BigDecimal("500.00"),
+            currency = "PHP"
+        )
+    ),
+    Item(
+        name = "Keyboard",
+        quantity = 1,
+        code = "KEYBOARD-001",
+        totalAmount = TotalAmount(
+            value = BigDecimal("1500.00"),
+            currency = "PHP"
+        )
+    )
+)
+
+val request = CheckoutRequest(
+    totalAmount = TotalAmount(
+        value = BigDecimal("47000.00"),
+        currency = "PHP"
+    ),
+    items = items,
+    requestReferenceNumber = "ORDER-${UUID.randomUUID()}",
+    redirectUrl = RedirectUrl(
+        success = "https://example.com/success",
+        failure = "https://example.com/failure",
+        cancel = "https://example.com/cancel"
+    )
+)
+```
+
+## Notes
+
+- The `requestReferenceNumber` should be unique for each transaction to avoid conflicts.
+- If `buyer.contact.email` is provided, a payment receipt will be sent to that email address.
+- The sum of all `items` total amounts should match the `totalAmount.value`.
+- All monetary values use `BigDecimal` for precision.
+- The `metadata` field accepts any valid JSON object and can be used to store additional merchant-specific data.

@@ -1,0 +1,164 @@
+---
+title: "Initializing Checkout Client"
+description: "Learn how to set up and configure the PayMayaCheckout client"
+---
+
+## Overview
+
+Before processing payments with Checkout, you need to initialize the `PayMayaCheckout` client with your API credentials and configuration.
+
+## Builder Pattern
+
+The SDK uses a builder pattern to construct the client:
+
+```kotlin
+val payMayaCheckoutClient = PayMayaCheckout.newBuilder()
+    .clientPublicKey("your_public_key")
+    .environment(PayMayaEnvironment.SANDBOX)
+    .logLevel(LogLevel.ERROR)
+    .build()
+```
+
+## Configuration Parameters
+
+### Client Public Key (Required)
+
+Your PayMaya public API key. Different keys are used for Sandbox and Production environments.
+
+```kotlin
+.clientPublicKey("pk-your-public-key-here")
+```
+
+<Warning>
+Never use your Production keys in development or testing. Always use Sandbox keys during development.
+</Warning>
+
+### Environment (Required)
+
+Specifies whether to use the Sandbox or Production environment.
+
+```kotlin
+.environment(PayMayaEnvironment.SANDBOX)  // For testing
+.environment(PayMayaEnvironment.PRODUCTION)  // For live transactions
+```
+
+**Available Environments:**
+- `PayMayaEnvironment.SANDBOX` - Testing environment with test cards
+- `PayMayaEnvironment.PRODUCTION` - Live environment for real transactions
+
+### Log Level (Optional)
+
+Controls the verbosity of SDK logging. Useful for debugging during development.
+
+```kotlin
+.logLevel(LogLevel.ERROR)
+```
+
+**Available Log Levels:**
+- `LogLevel.VERBOSE` - Includes HTTP request/response lines, headers, and bodies
+- `LogLevel.DEBUG` - Includes HTTP request/response lines and headers
+- `LogLevel.INFO` - Includes HTTP request/response lines only
+- `LogLevel.WARN` - Warning messages only
+- `LogLevel.ERROR` - Error messages only
+- `LogLevel.ASSERT` - Assert messages only
+
+<Note>
+Use `LogLevel.VERBOSE` or `LogLevel.DEBUG` during development to see detailed HTTP traffic. Switch to `LogLevel.ERROR` or `LogLevel.WARN` in production to reduce log noise.
+</Note>
+
+## Complete Example
+
+Here's a complete example of initializing the Checkout client in an Android Activity:
+
+```kotlin
+import com.paymaya.sdk.android.checkout.PayMayaCheckout
+import com.paymaya.sdk.android.common.LogLevel
+import com.paymaya.sdk.android.common.PayMayaEnvironment
+
+class MainActivity : Activity() {
+
+    private val payMayaCheckoutClient = PayMayaCheckout.newBuilder()
+        .clientPublicKey("pk-NCLk7JeDbX1m22ZRMDYO9bEPowNWT5J4aNIKIbcTy2a")
+        .environment(PayMayaEnvironment.SANDBOX)
+        .logLevel(LogLevel.WARN)
+        .build()
+
+    // Use the client for payments...
+}
+```
+
+## Client Lifecycle
+
+<Steps>
+  <Step title="Create Once">
+    Initialize the client once, typically as a class property or in `onCreate()`
+  </Step>
+  <Step title="Reuse">
+    Reuse the same client instance for multiple payment requests
+  </Step>
+  <Step title="No Cleanup Required">
+    The client doesn't require explicit cleanup or disposal
+  </Step>
+</Steps>
+
+## Best Practices
+
+### Store Client as Property
+
+```kotlin
+class PaymentActivity : Activity() {
+    // Initialize as a class property
+    private val payMayaCheckoutClient = PayMayaCheckout.newBuilder()
+        .clientPublicKey(getPublicKey())
+        .environment(getEnvironment())
+        .logLevel(LogLevel.ERROR)
+        .build()
+}
+```
+
+### Environment Configuration
+
+Store environment-specific configuration in `BuildConfig` or a configuration file:
+
+```kotlin
+private fun getPublicKey(): String {
+    return if (BuildConfig.DEBUG) {
+        "pk-sandbox-key"
+    } else {
+        "pk-production-key"
+    }
+}
+
+private fun getEnvironment(): PayMayaEnvironment {
+    return if (BuildConfig.DEBUG) {
+        PayMayaEnvironment.SANDBOX
+    } else {
+        PayMayaEnvironment.PRODUCTION
+    }
+}
+```
+
+### Dependency Injection
+
+For apps using dependency injection, provide the client as a singleton:
+
+```kotlin
+@Module
+class PaymentModule {
+    @Provides
+    @Singleton
+    fun providePayMayaCheckoutClient(): PayMayaCheckout {
+        return PayMayaCheckout.newBuilder()
+            .clientPublicKey("your_public_key")
+            .environment(PayMayaEnvironment.SANDBOX)
+            .logLevel(LogLevel.ERROR)
+            .build()
+    }
+}
+```
+
+## Next Steps
+
+<Card title="Making Payments" icon="credit-card" href="/checkout/making-payments">
+  Learn how to create checkout requests and start the payment flow
+</Card>

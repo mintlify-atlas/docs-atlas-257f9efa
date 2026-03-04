@@ -1,0 +1,121 @@
+---
+title: SinglePaymentRequest
+description: Model for single payment transaction data
+---
+
+The `SinglePaymentRequest` data class contains all information required to initiate a PayWithPayMaya single payment.
+
+## Type Signature
+
+```kotlin
+data class SinglePaymentRequest(
+    val totalAmount: TotalAmount,
+    val requestReferenceNumber: String,
+    val redirectUrl: RedirectUrl,
+    val metadata: JSONObject? = null
+)
+```
+
+## Properties
+
+<ParamField path="totalAmount" type="TotalAmount" required>
+  Transaction amount details including value, currency, and optional fee breakdown
+</ParamField>
+
+<ParamField path="requestReferenceNumber" type="String" required>
+  Reference number assigned by the merchant to identify the transaction. Must be unique per transaction.
+</ParamField>
+
+<ParamField path="redirectUrl" type="RedirectUrl" required>
+  Set of redirect URLs used upon process completion (success, failure, or cancel)
+</ParamField>
+
+<ParamField path="metadata" type="JSONObject" default="null">
+  Optional metadata for additional transaction information. Can contain custom key-value pairs.
+</ParamField>
+
+## Related Types
+
+### TotalAmount
+
+```kotlin
+data class TotalAmount(
+    val value: BigDecimal,
+    val currency: String,
+    val details: AmountDetails? = null
+)
+```
+
+**Properties:**
+- `value` (BigDecimal, required) - Payment amount to be charged
+- `currency` (String, required) - Currency code (e.g., "PHP")
+- `details` (AmountDetails?, optional) - Breakdown of fees
+
+### RedirectUrl
+
+```kotlin
+data class RedirectUrl(
+    val success: String,
+    val failure: String,
+    val cancel: String
+)
+```
+
+**Properties:**
+- `success` (String, required) - URL to redirect on successful payment
+- `failure` (String, required) - URL to redirect on payment failure
+- `cancel` (String, required) - URL to redirect when payment is cancelled
+
+## Example
+
+```kotlin
+import com.paymaya.sdk.android.paywithpaymaya.models.SinglePaymentRequest
+import com.paymaya.sdk.android.common.models.TotalAmount
+import com.paymaya.sdk.android.common.models.RedirectUrl
+import org.json.JSONObject
+import java.math.BigDecimal
+
+val request = SinglePaymentRequest(
+    totalAmount = TotalAmount(
+        value = BigDecimal("100.00"),
+        currency = "PHP"
+    ),
+    requestReferenceNumber = "ORDER-12345",
+    redirectUrl = RedirectUrl(
+        success = "myapp://payment/success",
+        failure = "myapp://payment/failure",
+        cancel = "myapp://payment/cancel"
+    ),
+    metadata = JSONObject().apply {
+        put("orderId", "12345")
+        put("customerId", "67890")
+    }
+)
+
+payWithPayMaya.startSinglePaymentActivityForResult(this, request)
+```
+
+## Usage with Deep Links
+
+Redirect URLs can use custom URL schemes for deep linking back to your app:
+
+```kotlin
+val redirectUrl = RedirectUrl(
+    success = "myapp://payment/success",
+    failure = "myapp://payment/failure",
+    cancel = "myapp://payment/cancel"
+)
+```
+
+Make sure to register the custom URL scheme in your `AndroidManifest.xml`:
+
+```xml
+<activity android:name=".PaymentResultActivity">
+    <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="myapp" android:host="payment" />
+    </intent-filter>
+</activity>
+```

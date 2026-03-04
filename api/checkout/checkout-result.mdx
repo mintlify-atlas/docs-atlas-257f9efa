@@ -1,0 +1,237 @@
+---
+title: PayMayaCheckoutResult
+description: Sealed class representing the result of a checkout payment
+---
+
+## Overview
+
+`PayMayaCheckoutResult` is a sealed class that represents the possible outcomes of a checkout payment. It has three variants: `Success`, `Cancel`, and `Failure`.
+
+## Class Definition
+
+```kotlin
+sealed class PayMayaCheckoutResult(
+    open val checkoutId: String?
+)
+```
+
+## Variants
+
+### Success
+
+Represents a successful checkout payment.
+
+```kotlin
+class Success internal constructor(
+    override val checkoutId: String
+) : PayMayaCheckoutResult(checkoutId)
+```
+
+<ParamField path="checkoutId" type="String" required>
+  The checkout ID identifier for the successful payment.
+</ParamField>
+
+#### Example
+
+```kotlin
+when (result) {
+    is PayMayaCheckoutResult.Success -> {
+        val checkoutId = result.checkoutId
+        Log.d("Payment", "Payment successful! Checkout ID: $checkoutId")
+        // Proceed with order fulfillment
+    }
+}
+```
+
+### Cancel
+
+Represents a canceled checkout payment.
+
+```kotlin
+class Cancel internal constructor(
+    override val checkoutId: String? = null
+) : PayMayaCheckoutResult(checkoutId)
+```
+
+<ParamField path="checkoutId" type="String?">
+  The checkout ID identifier if available, or null if the cancellation occurred before checkout ID generation.
+</ParamField>
+
+#### Example
+
+```kotlin
+when (result) {
+    is PayMayaCheckoutResult.Cancel -> {
+        Log.d("Payment", "Payment was canceled by user")
+        result.checkoutId?.let { id ->
+            Log.d("Payment", "Canceled checkout ID: $id")
+        }
+        // Handle cancellation (e.g., return to cart)
+    }
+}
+```
+
+### Failure
+
+Represents a failed checkout payment.
+
+```kotlin
+class Failure internal constructor(
+    override val checkoutId: String? = null,
+    val exception: Exception
+) : PayMayaCheckoutResult(checkoutId)
+```
+
+<ParamField path="checkoutId" type="String?">
+  The checkout ID identifier if available, or null if the failure occurred before checkout ID generation.
+</ParamField>
+
+<ParamField path="exception" type="Exception" required>
+  Exception containing the detailed reason for the failure.
+</ParamField>
+
+#### Example
+
+```kotlin
+when (result) {
+    is PayMayaCheckoutResult.Failure -> {
+        Log.e("Payment", "Payment failed: ${result.exception.message}")
+        result.checkoutId?.let { id ->
+            Log.e("Payment", "Failed checkout ID: $id")
+        }
+        // Show error message to user
+    }
+}
+```
+
+## Complete Usage Example
+
+```kotlin
+class PaymentActivity : AppCompatActivity() {
+    
+    private lateinit var checkout: PayMayaCheckout
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        checkout = PayMayaCheckout.newBuilder()
+            .clientPublicKey("pk-test-your-key")
+            .environment(PayMayaEnvironment.SANDBOX)
+            .build()
+        
+        // Start checkout
+        val request = createCheckoutRequest()
+        checkout.startCheckoutActivityForResult(this, request)
+    }
+    
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        
+        val result = checkout.onActivityResult(requestCode, resultCode, data)
+        handleCheckoutResult(result)
+    }
+    
+    private fun handleCheckoutResult(result: PayMayaCheckoutResult?) {
+        result ?: return
+        
+        when (result) {
+            is PayMayaCheckoutResult.Success -> {
+                // Payment successful
+                showSuccessDialog(result.checkoutId)
+                
+                // Verify payment status on backend
+                verifyPayment(result.checkoutId)
+            }
+            
+            is PayMayaCheckoutResult.Cancel -> {
+                // User canceled the payment
+                Toast.makeText(
+                    this,
+                    "Payment was canceled",
+                    Toast.LENGTH_SHORT
+                ).show()
+                
+                // Log for analytics
+                logCancellation(result.checkoutId)
+            }
+            
+            is PayMayaCheckoutResult.Failure -> {
+                // Payment failed
+                showErrorDialog(
+                    title = "Payment Failed",
+                    message = result.exception.message ?: "An error occurred"
+                )
+                
+                // Log error for debugging
+                Log.e("Payment", "Payment failed", result.exception)
+                
+                // Report to error tracking service
+                reportError(result.exception, result.checkoutId)
+            }
+        }
+    }
+    
+    private fun verifyPayment(checkoutId: String) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val statusResult = checkout.checkPaymentStatus(checkoutId)
+                
+                withContext(Dispatchers.Main) {
+                    when (statusResult) {
+                        is CheckPaymentStatusResult.Success -> {
+                            // Confirm payment status
+                            handlePaymentStatus(statusResult.status)
+                        }
+                        is CheckPaymentStatusResult.Failure -> {
+                            Log.e("Payment", "Failed to check status: ${statusResult.exception.message}")
+                        }
+                        is CheckPaymentStatusResult.Cancel -> {
+                            Log.d("Payment", "Status check canceled")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("Payment", "Error verifying payment", e)
+            }
+        }
+    }
+    
+    private fun createCheckoutRequest(): CheckoutRequest {
+        return CheckoutRequest(
+            totalAmount = TotalAmount(
+                value = BigDecimal("100.00"),
+                currency = "PHP"
+            ),
+            items = listOf(
+                Item(
+                    name = "Sample Product",
+                    totalAmount = TotalAmount(
+                        value = BigDecimal("100.00"),
+                        currency = "PHP"
+                    )
+                )
+            ),
+            requestReferenceNumber = "ORDER-${System.currentTimeMillis()}",
+            redirectUrl = RedirectUrl(
+                success = "https://example.com/success",
+                failure = "https://example.com/failure",
+                cancel = "https://example.com/cancel"
+            )
+        )
+    }
+}
+```
+
+## Pattern Matching
+
+Since `PayMayaCheckoutResult` is a sealed class, you can use Kotlin's `when` expression for exhaustive pattern matching:
+
+```kotlin
+val message = when (result) {
+    is PayMayaCheckoutResult.Success -> "Payment successful: ${result.checkoutId}"
+    is PayMayaCheckoutResult.Cancel -> "Payment canceled"
+    is PayMayaCheckoutResult.Failure -> "Payment failed: ${result.exception.message}"
+}
+```
+
+The Kotlin compiler will ensure you handle all possible cases.

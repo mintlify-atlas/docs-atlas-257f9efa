@@ -1,0 +1,233 @@
+---
+title: PayWithPayMaya
+description: Main interface for PayWithPayMaya client
+---
+
+The `PayWithPayMaya` interface provides methods to initiate payment flows and handle payment results.
+
+## Initialization
+
+Create a new instance using the Builder pattern:
+
+```kotlin
+val payWithPayMaya = PayWithPayMaya.newBuilder()
+    .clientPublicKey("your-public-key")
+    .environment(PayMayaEnvironment.SANDBOX)
+    .logLevel(LogLevel.DEBUG) // Optional
+    .build()
+```
+
+## Methods
+
+### startSinglePaymentActivityForResult
+
+Initiates the single payment flow.
+
+```kotlin
+fun startSinglePaymentActivityForResult(
+    activity: Activity,
+    request: SinglePaymentRequest
+)
+```
+
+<ParamField path="activity" type="Activity" required>
+  Current activity instance
+</ParamField>
+
+<ParamField path="request" type="SinglePaymentRequest" required>
+  Payment request containing all transaction information
+</ParamField>
+
+Use `onActivityResult()` to get the [SinglePaymentResult](/api/paywithpaymaya/results#singlepaymentresult).
+
+### startCreateWalletLinkActivityForResult
+
+Initiates the create wallet link flow that allows charging a PayMaya account.
+
+```kotlin
+fun startCreateWalletLinkActivityForResult(
+    activity: Activity,
+    request: CreateWalletLinkRequest
+)
+```
+
+<ParamField path="activity" type="Activity" required>
+  Current activity instance
+</ParamField>
+
+<ParamField path="request" type="CreateWalletLinkRequest" required>
+  Wallet link request containing necessary information
+</ParamField>
+
+Use `onActivityResult()` to get the [CreateWalletLinkResult](/api/paywithpaymaya/results#createwalletlinkresult).
+
+### onActivityResult
+
+Gets the payment result. Call this from your Activity's `onActivityResult()` method.
+
+```kotlin
+fun onActivityResult(
+    requestCode: Int,
+    resultCode: Int,
+    data: Intent?
+): PayWithPayMayaResult?
+```
+
+<ParamField path="requestCode" type="Int" required>
+  Request code from onActivityResult
+</ParamField>
+
+<ParamField path="resultCode" type="Int" required>
+  Result code from onActivityResult
+</ParamField>
+
+<ParamField path="data" type="Intent?" required>
+  Intent data from onActivityResult
+</ParamField>
+
+**Returns:** Non-null `PayWithPayMayaResult` if the completed activity was started by `startSinglePaymentActivityForResult()` or `startCreateWalletLinkActivityForResult()`. The result can be either [SinglePaymentResult](/api/paywithpaymaya/results#singlepaymentresult) or [CreateWalletLinkResult](/api/paywithpaymaya/results#createwalletlinkresult). Returns `null` otherwise.
+
+### checkPaymentStatus
+
+Checks the status of a payment. This method is synchronous and must not be called from the main thread.
+
+```kotlin
+fun checkPaymentStatus(id: String): CheckPaymentStatusResult
+```
+
+<ParamField path="id" type="String" required>
+  Payment or wallet link identifier
+</ParamField>
+
+**Returns:** `CheckPaymentStatusResult` containing the payment status or failure information.
+
+<Warning>
+This method is synchronous. Call it from a background thread to avoid blocking the UI.
+</Warning>
+
+## Builder
+
+The `PayWithPayMaya.Builder` interface configures and creates `PayWithPayMaya` instances.
+
+### newBuilder
+
+Creates a new builder instance.
+
+```kotlin
+fun newBuilder(): Builder
+```
+
+### clientPublicKey
+
+Sets the client public key.
+
+```kotlin
+fun clientPublicKey(value: String): Builder
+```
+
+<ParamField path="value" type="String" required>
+  Your PayMaya public API key
+</ParamField>
+
+**Required:** Yes
+
+### environment
+
+Sets the environment type.
+
+```kotlin
+fun environment(value: PayMayaEnvironment): Builder
+```
+
+<ParamField path="value" type="PayMayaEnvironment" required>
+  Environment - either `PayMayaEnvironment.SANDBOX` or `PayMayaEnvironment.PRODUCTION`
+</ParamField>
+
+**Required:** Yes
+
+### logLevel
+
+Sets the log level for debugging.
+
+```kotlin
+fun logLevel(value: LogLevel): Builder
+```
+
+<ParamField path="value" type="LogLevel">
+  Logging level - one of:
+  - `LogLevel.VERBOSE` - Includes HTTP request/response lines, headers, and bodies
+  - `LogLevel.DEBUG` - Includes HTTP request/response lines and headers
+  - `LogLevel.INFO` - Includes HTTP request/response lines
+  - `LogLevel.WARN`
+  - `LogLevel.ERROR`
+  - `LogLevel.ASSERT`
+</ParamField>
+
+**Required:** No
+
+### build
+
+Builds the `PayWithPayMaya` client instance.
+
+```kotlin
+fun build(): PayWithPayMaya
+```
+
+**Returns:** Configured `PayWithPayMaya` instance.
+
+## Example Usage
+
+```kotlin
+class PaymentActivity : AppCompatActivity() {
+
+    private lateinit var payWithPayMaya: PayWithPayMaya
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        // Initialize client
+        payWithPayMaya = PayWithPayMaya.newBuilder()
+            .clientPublicKey("pk-test-123456")
+            .environment(PayMayaEnvironment.SANDBOX)
+            .logLevel(LogLevel.DEBUG)
+            .build()
+
+        // Start payment
+        val request = SinglePaymentRequest(
+            totalAmount = TotalAmount(
+                value = BigDecimal("100.00"),
+                currency = "PHP"
+            ),
+            requestReferenceNumber = "ORDER-12345",
+            redirectUrl = RedirectUrl(
+                success = "myapp://payment/success",
+                failure = "myapp://payment/failure",
+                cancel = "myapp://payment/cancel"
+            )
+        )
+        
+        payWithPayMaya.startSinglePaymentActivityForResult(this, request)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        
+        payWithPayMaya.onActivityResult(requestCode, resultCode, data)?.let { result ->
+            when (result) {
+                is SinglePaymentResult.Success -> {
+                    // Handle success
+                    Log.d("Payment", "Success: ${result.paymentId}")
+                }
+                is SinglePaymentResult.Cancel -> {
+                    // Handle cancellation
+                    Log.d("Payment", "Cancelled")
+                }
+                is SinglePaymentResult.Failure -> {
+                    // Handle failure
+                    Log.e("Payment", "Failed", result.exception)
+                }
+            }
+        }
+    }
+}
+```

@@ -1,122 +1,100 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "PayMaya Android SDK v2",
+  "theme": "palm",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#00D377",
+    "light": "#00FF8C",
+    "dark": "#00A35C"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/PayMaya/PayMaya-Android-SDK-v2"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/PayMaya/PayMaya-Android-SDK-v2"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "installation",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Payment Methods",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "checkout/overview",
+              "checkout/initialization",
+              "checkout/making-payments",
+              "checkout/handling-results",
+              "pay-with-paymaya/overview",
+              "pay-with-paymaya/single-payment",
+              "pay-with-paymaya/wallet-link",
+              "vault/overview",
+              "vault/card-tokenization"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "guides/environment-configuration",
+              "guides/checking-payment-status",
+              "guides/error-handling",
+              "guides/testing-sandbox"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Checkout",
             "pages": [
-              "api-reference/introduction"
+              "api/checkout/paymaya-checkout",
+              "api/checkout/checkout-request",
+              "api/checkout/checkout-result",
+              "api/checkout/models"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Pay With PayMaya",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/paywithpaymaya/pay-with-paymaya",
+              "api/paywithpaymaya/single-payment-request",
+              "api/paywithpaymaya/wallet-link-request",
+              "api/paywithpaymaya/results"
+            ]
+          },
+          {
+            "group": "Vault",
+            "pages": [
+              "api/vault/paymaya-vault",
+              "api/vault/vault-result"
+            ]
+          },
+          {
+            "group": "Common",
+            "pages": [
+              "api/common/environment",
+              "api/common/log-level",
+              "api/common/payment-status",
+              "api/common/exceptions"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

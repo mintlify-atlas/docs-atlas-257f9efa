@@ -1,0 +1,307 @@
+---
+title: Exceptions
+description: Exception types and error models in the PayMaya Android SDK
+---
+
+## Overview
+
+The PayMaya Android SDK defines several exception types to handle different error scenarios during payment processing.
+
+## Exception Types
+
+### BadRequestException
+
+Thrown when the server returns a 400 (Bad Request) or 401 (Unauthorized) HTTP status code.
+
+#### Definition
+
+```kotlin
+package com.paymaya.sdk.android.common.exceptions
+
+class BadRequestException internal constructor(
+    message: String,
+    val error: BaseError
+) : Exception(message)
+```
+
+#### Properties
+
+- `message: String` - Detail message of the exception
+- `error: BaseError` - Detailed error information (see [Error Models](#error-models))
+
+#### Usage Example
+
+```kotlin
+try {
+    // SDK operation
+} catch (e: BadRequestException) {
+    when (val error = e.error) {
+        is PaymentError -> {
+            Log.e("Payment", "Code: ${error.code}, Message: ${error.message}")
+        }
+        is GenericError -> {
+            Log.e("Payment", "Error: ${error.error}")
+        }
+    }
+}
+```
+
+---
+
+### HttpException
+
+Thrown when an unknown HTTP exception occurs.
+
+#### Definition
+
+```kotlin
+package com.paymaya.sdk.android.common.exceptions
+
+class HttpException internal constructor(
+    val code: Int,
+    message: String
+) : Exception(message)
+```
+
+#### Properties
+
+- `code: Int` - HTTP response code
+- `message: String` - HTTP response message
+
+#### Usage Example
+
+```kotlin
+try {
+    // SDK operation
+} catch (e: HttpException) {
+    Log.e("Payment", "HTTP ${e.code}: ${e.message}")
+}
+```
+
+---
+
+### InternalException
+
+Thrown when an unexpected response from the backend is received.
+
+#### Definition
+
+```kotlin
+package com.paymaya.sdk.android.common.exceptions
+
+class InternalException internal constructor(
+    message: String,
+    cause: Throwable? = null
+) : Exception(message, cause)
+```
+
+#### Properties
+
+- `message: String` - Detail message
+- `cause: Throwable?` - Optional cause of the exception
+
+#### Usage Example
+
+```kotlin
+try {
+    // SDK operation
+} catch (e: InternalException) {
+    Log.e("Payment", "Internal error: ${e.message}", e.cause)
+}
+```
+
+---
+
+### PaymentFailedException
+
+Thrown when a payment has failed.
+
+#### Definition
+
+```kotlin
+package com.paymaya.sdk.android.common.exceptions
+
+object PaymentFailedException : Exception()
+```
+
+#### Usage Example
+
+```kotlin
+try {
+    // SDK operation
+} catch (e: PaymentFailedException) {
+    // Handle payment failure
+    Log.e("Payment", "Payment failed")
+}
+```
+
+---
+
+## Error Models
+
+### BaseError
+
+Abstract base class for all error types.
+
+```kotlin
+package com.paymaya.sdk.android.common.models
+
+@Serializable
+abstract class BaseError : java.io.Serializable
+```
+
+---
+
+### PaymentError
+
+Detailed payment error returned by the PayMaya gateway.
+
+#### Definition
+
+```kotlin
+package com.paymaya.sdk.android.common.models
+
+@Serializable
+data class PaymentError(
+    val code: String,
+    val message: String,
+    val parameters: List<PaymentErrorParameter>? = null,
+    val details: PaymentErrorDetails? = null
+) : BaseError()
+```
+
+#### Properties
+
+- `code: String` - Error code
+- `message: String` - Error message
+- `parameters: List<PaymentErrorParameter>?` - Optional list of error parameters
+- `details: PaymentErrorDetails?` - Optional error details
+
+---
+
+### PaymentErrorParameter
+
+Represents a parameter-specific error.
+
+#### Definition
+
+```kotlin
+package com.paymaya.sdk.android.common.models
+
+@Serializable
+data class PaymentErrorParameter(
+    val field: String? = null,
+    val description: String? = null
+) : java.io.Serializable
+```
+
+#### Properties
+
+- `field: String?` - Field name that caused the error
+- `description: String?` - Error description for the field
+
+---
+
+### PaymentErrorDetails
+
+Detailed information about a payment error.
+
+#### Definition
+
+```kotlin
+package com.paymaya.sdk.android.common.models
+
+@Serializable
+data class PaymentErrorDetails(
+    val responseCode: String? = null,
+    val responseDescription: String? = null,
+    val requestReferenceNumber: String? = null
+) : java.io.Serializable
+```
+
+#### Properties
+
+- `responseCode: String?` - Response code from the payment processor
+- `responseDescription: String?` - Response description
+- `requestReferenceNumber: String?` - Request reference number for tracking
+
+---
+
+### GenericError
+
+Generic error returned by the PayMaya gateway.
+
+#### Definition
+
+```kotlin
+package com.paymaya.sdk.android.common.models
+
+@Serializable
+data class GenericError(
+    val code: String,
+    val error: String,
+    val reference: String
+) : BaseError()
+```
+
+#### Properties
+
+- `code: String` - Error code
+- `error: String` - Error message
+- `reference: String` - Error reference
+
+---
+
+## Error Handling Best Practices
+
+### Handle Specific Exceptions
+
+```kotlin
+try {
+    // Perform SDK operation
+} catch (e: BadRequestException) {
+    // Handle bad request (validation errors, authentication issues)
+} catch (e: PaymentFailedException) {
+    // Handle payment failure
+} catch (e: HttpException) {
+    // Handle HTTP errors
+} catch (e: InternalException) {
+    // Handle internal errors
+} catch (e: Exception) {
+    // Handle unexpected errors
+}
+```
+
+### Extract Detailed Error Information
+
+```kotlin
+catch (e: BadRequestException) {
+    when (val error = e.error) {
+        is PaymentError -> {
+            // Access detailed payment error
+            println("Error code: ${error.code}")
+            println("Message: ${error.message}")
+            
+            // Check parameter errors
+            error.parameters?.forEach { param ->
+                println("Field: ${param.field}, Error: ${param.description}")
+            }
+            
+            // Check error details
+            error.details?.let { details ->
+                println("Response code: ${details.responseCode}")
+                println("Reference: ${details.requestReferenceNumber}")
+            }
+        }
+        is GenericError -> {
+            println("Generic error: ${error.error}")
+            println("Reference: ${error.reference}")
+        }
+    }
+}
+```
+
+## See Also
+
+- [Payment Status](/api/common/payment-status) - Payment status enumeration
+- [Error Handling](/guides/error-handling) - Guide to handling errors in the SDK

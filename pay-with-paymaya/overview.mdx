@@ -1,0 +1,144 @@
+---
+title: "Pay With PayMaya Overview"
+description: "Introduction to PayMaya wallet payments and recurring payment setup"
+---
+
+Pay With PayMaya allows customers to pay using their PayMaya wallet. It supports two distinct use cases: one-time payments and wallet linking for recurring payments.
+
+## What is Pay With PayMaya?
+
+Pay With PayMaya is a wallet-based payment method that provides a simplified payment flow for customers who have a PayMaya account. Unlike Checkout, it doesn't require detailed item or buyer information.
+
+## Payment Methods
+
+Pay With PayMaya offers two distinct payment flows:
+
+### Single Payment
+
+Process one-time payments using the customer's PayMaya wallet balance or linked payment methods.
+
+**Use Cases:**
+- Simple one-time transactions
+- Quick payments without detailed checkout
+- Bill payments
+- Top-ups and reloads
+
+### Wallet Link (Create Wallet Link)
+
+Create a link to the customer's PayMaya wallet that allows you to charge their account later for recurring payments.
+
+**Use Cases:**
+- Subscription services
+- Recurring billing
+- Auto-payments
+- Stored payment methods
+
+## Key Features
+
+- **WebView-based**: Both flows use a secure WebView hosted by PayMaya
+- **Simplified flow**: No item or buyer details required
+- **Wallet-based**: Leverages customer's PayMaya wallet
+- **Recurring support**: Wallet Link enables recurring payments
+- **Payment status checking**: Verify payment status programmatically
+
+## Pay With PayMaya vs Checkout
+
+| Feature | Pay With PayMaya | Checkout |
+|---------|------------------|----------|
+| Payment Method | PayMaya wallet only | Multiple payment methods |
+| Buyer Information | Not required | Optional/Required |
+| Item Details | Not required | Required |
+| Integration Complexity | Simpler | More detailed |
+| Recurring Payments | Supported (Wallet Link) | Not supported |
+| Use Case | Simple/recurring payments | E-commerce transactions |
+
+## Single Payment Flow
+
+<Steps>
+  <Step title="Initialize Client">
+    Create a `PayWithPayMaya` client with your API credentials
+  </Step>
+  <Step title="Prepare Request">
+    Build a `SinglePaymentRequest` with transaction amount
+  </Step>
+  <Step title="Start Payment">
+    Call `startSinglePaymentActivityForResult()` to launch the payment WebView
+  </Step>
+  <Step title="Handle Result">
+    Process the payment result in `onActivityResult()` using `SinglePaymentResult`
+  </Step>
+</Steps>
+
+## Wallet Link Flow
+
+<Steps>
+  <Step title="Initialize Client">
+    Create a `PayWithPayMaya` client with your API credentials
+  </Step>
+  <Step title="Prepare Request">
+    Build a `CreateWalletLinkRequest` with reference number
+  </Step>
+  <Step title="Start Linking">
+    Call `startCreateWalletLinkActivityForResult()` to launch the linking WebView
+  </Step>
+  <Step title="Handle Result">
+    Process the result in `onActivityResult()` using `CreateWalletLinkResult`
+  </Step>
+  <Step title="Store Link ID">
+    Save the `linkId` for future charges to the customer's wallet
+  </Step>
+</Steps>
+
+## When to Use Pay With PayMaya
+
+Choose Pay With PayMaya when:
+
+- You need a simple payment flow without detailed checkout requirements
+- Your customers primarily use PayMaya wallets
+- You need to implement recurring payments or subscriptions
+- You want faster checkout with fewer fields
+
+<Note>
+For e-commerce applications with multiple items and detailed buyer information, consider using [Checkout](/checkout/overview) instead.
+</Note>
+
+## Result Types
+
+Pay With PayMaya returns different result types based on the operation:
+
+### SinglePaymentResult
+
+Returned from single payment operations:
+- `SinglePaymentResult.Success` - Payment completed
+- `SinglePaymentResult.Cancel` - Payment canceled
+- `SinglePaymentResult.Failure` - Payment failed
+
+### CreateWalletLinkResult
+
+Returned from wallet link operations:
+- `CreateWalletLinkResult.Success` - Link created successfully
+- `CreateWalletLinkResult.Cancel` - Linking canceled
+- `CreateWalletLinkResult.Failure` - Linking failed
+
+## Automatic Status Checking
+
+Similar to Checkout, if the user closes the Pay With PayMaya Activity (e.g., by pressing the Back button), the SDK automatically checks the payment status if the `paymentId` was retrieved:
+
+- `PAYMENT_SUCCESS` → `SinglePaymentResult.Success`
+- `AUTH_FAILED` or `PAYMENT_FAILED` → `SinglePaymentResult.Failure`
+- Otherwise → `SinglePaymentResult.Cancel`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Single Payment" icon="credit-card" href="/pay-with-paymaya/single-payment">
+    Process one-time PayMaya wallet payments
+  </Card>
+  <Card title="Wallet Link" icon="link" href="/pay-with-paymaya/wallet-link">
+    Set up recurring payments with wallet linking
+  </Card>
+</CardGroup>
+
+<Warning>
+For Sandbox testing, use test credentials from the [PayMaya Test Environment documentation](https://developers.paymaya.com/blog/entry/checkout-api-test-credit-card-account-numbers).
+</Warning>

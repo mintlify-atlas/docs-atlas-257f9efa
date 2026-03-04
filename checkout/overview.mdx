@@ -1,0 +1,77 @@
+---
+title: "Checkout Overview"
+description: "Introduction to PayMaya Checkout for processing payments via WebView"
+---
+
+PayMaya Checkout is a web-based payment method that allows you to accept payments from customers using various payment options including credit/debit cards, e-wallets, and other payment channels supported by PayMaya.
+
+## What is Checkout?
+
+Checkout provides a secure, PayMaya-hosted payment page where customers complete their payment. The SDK handles the entire payment flow in a WebView, making it easy to integrate without building your own payment UI.
+
+## Key Features
+
+- **WebView-based**: Payment flow is handled in a secure WebView hosted by PayMaya
+- **Multiple payment methods**: Supports credit/debit cards, e-wallets, and more
+- **Buyer information**: Optional buyer details including shipping and billing addresses
+- **Item details**: Support for multiple items with detailed information
+- **Metadata support**: Add custom data to track transactions
+- **Payment status checking**: Verify payment status programmatically
+
+## When to Use Checkout
+
+Use Checkout when you need:
+
+- A complete payment solution with minimal integration effort
+- Support for multiple payment methods in a single integration
+- Detailed buyer and item information for each transaction
+- A secure, PCI-compliant payment flow without handling sensitive card data
+
+<Note>
+Checkout is ideal for e-commerce applications, marketplaces, and any app that needs to process one-time payments with detailed transaction information.
+</Note>
+
+## Payment Flow
+
+<Steps>
+  <Step title="Initialize Client">
+    Create a `PayMayaCheckout` client with your API credentials
+  </Step>
+  <Step title="Prepare Request">
+    Build a `CheckoutRequest` with transaction details, items, and buyer information
+  </Step>
+  <Step title="Start Payment">
+    Call `startCheckoutActivityForResult()` to launch the payment WebView
+  </Step>
+  <Step title="Handle Result">
+    Process the payment result in `onActivityResult()` using `PayMayaCheckoutResult`
+  </Step>
+</Steps>
+
+## Checkout vs Other Methods
+
+| Feature | Checkout | Pay With PayMaya | Vault |
+|---------|----------|------------------|-------|
+| Payment UI | WebView | WebView | Native |
+| Buyer Details | Required/Optional | Not supported | Not applicable |
+| Item Details | Supported | Not supported | Not applicable |
+| Use Case | E-commerce transactions | Simple payments | Card tokenization |
+| Recurring Payments | Not supported | Wallet Link | Token-based |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Initialize Client" icon="gear" href="/checkout/initialization">
+    Set up the PayMayaCheckout client
+  </Card>
+  <Card title="Make Payments" icon="credit-card" href="/checkout/making-payments">
+    Create checkout requests and process payments
+  </Card>
+  <Card title="Handle Results" icon="check" href="/checkout/handling-results">
+    Process payment results and check status
+  </Card>
+</CardGroup>
+
+<Warning>
+For Sandbox testing, use test credit cards from the [PayMaya Test Cards documentation](https://developers.paymaya.com/blog/entry/checkout-api-test-credit-card-account-numbers).
+</Warning>

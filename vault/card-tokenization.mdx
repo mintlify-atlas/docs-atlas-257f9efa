@@ -1,0 +1,494 @@
+---
+title: "Implementing Card Tokenization"
+description: "Tokenize customer cards using PayMaya Vault's native UI"
+---
+
+## Overview
+
+Card tokenization converts sensitive card information into a secure payment token. The PayMaya Vault SDK provides a native Android activity with a built-in card input form, handling all validation and security.
+
+## Client Initialization
+
+Create a `PayMayaVault` client with your configuration:
+
+```kotlin
+import com.paymaya.sdk.android.vault.PayMayaVault
+import com.paymaya.sdk.android.common.LogLevel
+import com.paymaya.sdk.android.common.PayMayaEnvironment
+
+val payMayaVaultClient = PayMayaVault.newBuilder()
+    .clientPublicKey("your_public_key")
+    .environment(PayMayaEnvironment.SANDBOX)
+    .logLevel(LogLevel.ERROR)
+    .build()
+```
+
+### Configuration Parameters
+
+#### clientPublicKey (Required)
+
+Your PayMaya public API key:
+
+```kotlin
+.clientPublicKey("pk-your-public-key-here")
+```
+
+#### environment (Required)
+
+The environment to use:
+
+```kotlin
+.environment(PayMayaEnvironment.SANDBOX)      // Testing
+.environment(PayMayaEnvironment.PRODUCTION)   // Production
+```
+
+#### logLevel (Optional)
+
+Logging verbosity:
+
+```kotlin
+.logLevel(LogLevel.ERROR)  // Recommended for production
+.logLevel(LogLevel.DEBUG)  // Useful for development
+```
+
+**Available levels:** `VERBOSE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `ASSERT`
+
+#### logo (Optional)
+
+Custom merchant logo to display in the tokenization UI:
+
+```kotlin
+.logo(R.drawable.merchant_logo)
+```
+
+<Note>
+The logo will be displayed at the top of the card input form. Use a drawable resource from your app.
+</Note>
+
+### Complete Initialization Example
+
+```kotlin
+import com.paymaya.sdk.android.vault.PayMayaVault
+import com.paymaya.sdk.android.common.LogLevel
+import com.paymaya.sdk.android.common.PayMayaEnvironment
+
+class PaymentActivity : Activity() {
+
+    private val payMayaVaultClient = PayMayaVault.newBuilder()
+        .clientPublicKey("pk-MOfNKu3FmHMVHtjyjG7vhr7vFevRkWxmxYL1Yq6iFk5")
+        .environment(PayMayaEnvironment.SANDBOX)
+        .logLevel(LogLevel.WARN)
+        .logo(R.drawable.company_logo)
+        .build()
+}
+```
+
+## Starting Card Tokenization
+
+Call `startTokenizeCardActivityForResult()` to launch the native card input UI:
+
+```kotlin
+payMayaVaultClient.startTokenizeCardActivityForResult(this)
+```
+
+### Method Signature
+
+```kotlin
+fun startTokenizeCardActivityForResult(activity: Activity)
+```
+
+**Parameters:**
+- `activity` - Current Activity context
+
+<Note>
+No request object is needed. The SDK displays a pre-built card input form that handles all validation.
+</Note>
+
+## The Card Input UI
+
+When you call `startTokenizeCardActivityForResult()`, the SDK launches a native activity with:
+
+- Card number input with automatic formatting
+- Expiry date input (MM/YY format)
+- CVV/CVC input
+- Cardholder name input
+- Built-in validation and error messages
+- Your custom logo (if provided)
+
+The customer enters their card details, and the SDK handles:
+- Real-time validation
+- Card type detection
+- Secure transmission to PayMaya servers
+- Token generation
+
+## Handling Tokenization Results
+
+Process results in `onActivityResult()`:
+
+```kotlin
+import android.content.Intent
+import com.paymaya.sdk.android.vault.PayMayaVaultResult
+
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    payMayaVaultClient.onActivityResult(requestCode, resultCode, data)?.let { result ->
+        when (result) {
+            is PayMayaVaultResult.Success -> {
+                val paymentTokenId = result.paymentTokenId
+                val state = result.state
+                val createdAt = result.createdAt
+                val updatedAt = result.updatedAt
+                val issuer = result.issuer
+                
+                saveToken(paymentTokenId)
+                showSuccess("Card tokenized! Issuer: $issuer")
+            }
+            
+            is PayMayaVaultResult.Cancel -> {
+                showCancel("Tokenization canceled")
+            }
+        }
+    }
+}
+```
+
+### Result Types
+
+#### PayMayaVaultResult.Success
+
+Card was successfully tokenized:
+
+```kotlin
+is PayMayaVaultResult.Success -> {
+    val paymentTokenId: String = result.paymentTokenId
+    val state: String = result.state
+    val createdAt: String = result.createdAt
+    val updatedAt: String = result.updatedAt
+    val issuer: String = result.issuer
+    
+    // Save token for later use
+    saveToBackend(paymentTokenId, issuer)
+}
+```
+
+**Properties:**
+- `paymentTokenId: String` - The payment token representing the card
+- `state: String` - Token state (e.g., "available")
+- `createdAt: String` - ISO 8601 timestamp when token was created
+- `updatedAt: String` - ISO 8601 timestamp when token was last updated
+- `issuer: String` - Card issuer (e.g., "VISA", "MASTERCARD", "JCB")
+
+<Warning>
+The `paymentTokenId` is critical for payment processing. Always save it securely in your backend.
+</Warning>
+
+#### PayMayaVaultResult.Cancel
+
+Tokenization was canceled by the user:
+
+```kotlin
+is PayMayaVaultResult.Cancel -> {
+    // User closed the card input form
+    Log.i(TAG, "Card tokenization canceled")
+}
+```
+
+<Note>
+There is no `Failure` result type for Vault. Validation errors are handled within the card input UI, and the user can retry immediately.
+</Note>
+
+## Complete Example
+
+```kotlin
+import android.app.Activity
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
+import com.paymaya.sdk.android.common.LogLevel
+import com.paymaya.sdk.android.common.PayMayaEnvironment
+import com.paymaya.sdk.android.vault.PayMayaVault
+import com.paymaya.sdk.android.vault.PayMayaVaultResult
+
+class CardTokenizationActivity : Activity() {
+
+    private val payMayaVaultClient = PayMayaVault.newBuilder()
+        .clientPublicKey("pk-MOfNKu3FmHMVHtjyjG7vhr7vFevRkWxmxYL1Yq6iFk5")
+        .environment(PayMayaEnvironment.SANDBOX)
+        .logLevel(LogLevel.WARN)
+        .logo(R.drawable.merchant_logo)
+        .build()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_card_tokenization)
+        
+        findViewById<Button>(R.id.addCardButton).setOnClickListener {
+            startCardTokenization()
+        }
+    }
+
+    private fun startCardTokenization() {
+        payMayaVaultClient.startTokenizeCardActivityForResult(this)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        payMayaVaultClient.onActivityResult(requestCode, resultCode, data)?.let { result ->
+            processVaultResult(result)
+        }
+    }
+
+    private fun processVaultResult(result: PayMayaVaultResult) {
+        when (result) {
+            is PayMayaVaultResult.Success -> {
+                val message = "Card tokenized successfully!\n" +
+                              "Token: ${result.paymentTokenId}\n" +
+                              "Issuer: ${result.issuer}\n" +
+                              "State: ${result.state}"
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                Log.i(TAG, "Tokenization success: $message")
+                
+                // Save token to backend
+                saveTokenToBackend(
+                    tokenId = result.paymentTokenId,
+                    issuer = result.issuer,
+                    state = result.state,
+                    createdAt = result.createdAt
+                )
+                
+                // Update UI
+                displaySavedCard(result.issuer, result.paymentTokenId)
+            }
+
+            is PayMayaVaultResult.Cancel -> {
+                Toast.makeText(this, "Card tokenization canceled", Toast.LENGTH_SHORT).show()
+                Log.w(TAG, "Tokenization canceled by user")
+                
+                // Return to previous screen or show retry option
+                finish()
+            }
+        }
+    }
+
+    private fun saveTokenToBackend(
+        tokenId: String,
+        issuer: String,
+        state: String,
+        createdAt: String
+    ) {
+        // Send to your backend for secure storage
+        api.savePaymentToken(
+            userId = currentUserId,
+            tokenId = tokenId,
+            issuer = issuer,
+            state = state,
+            createdAt = createdAt
+        )
+    }
+
+    private fun displaySavedCard(issuer: String, tokenId: String) {
+        // Update UI to show saved card
+        // Use last 4 digits or issuer type for display
+    }
+
+    companion object {
+        private const val TAG = "CardTokenization"
+    }
+}
+```
+
+## Using Payment Tokens
+
+After successful tokenization, use the token for payments:
+
+<Steps>
+  <Step title="Store Token">
+    Save the `paymentTokenId` in your backend database
+  </Step>
+  <Step title="Create Customer (Optional)">
+    For recurring payments, create a customer vault card via server-side API
+  </Step>
+  <Step title="Process Payment">
+    Use the token in payment API calls from your backend
+  </Step>
+  <Step title="Handle Expiration">
+    Payment tokens are typically single-use and time-limited
+  </Step>
+</Steps>
+
+<Note>
+The Android SDK only handles tokenization. Actual payment processing with tokens is done via server-side API calls to PayMaya.
+</Note>
+
+## Storing Multiple Cards
+
+Allow customers to save multiple payment cards:
+
+```kotlin
+data class SavedCard(
+    val id: String,              // Your internal ID
+    val paymentTokenId: String,  // PayMaya token
+    val issuer: String,          // Card brand
+    val last4: String?,          // Last 4 digits (if available)
+    val expiryMonth: Int?,
+    val expiryYear: Int?,
+    val isDefault: Boolean,
+    val createdAt: Long
+)
+
+class CardRepository {
+    
+    suspend fun addCard(
+        userId: String,
+        paymentTokenId: String,
+        issuer: String
+    ): SavedCard {
+        val card = SavedCard(
+            id = UUID.randomUUID().toString(),
+            paymentTokenId = paymentTokenId,
+            issuer = issuer,
+            last4 = null,  // Not available from SDK
+            expiryMonth = null,
+            expiryYear = null,
+            isDefault = false,
+            createdAt = System.currentTimeMillis()
+        )
+        
+        return api.saveCard(userId, card)
+    }
+    
+    suspend fun getCards(userId: String): List<SavedCard> {
+        return api.getCards(userId)
+    }
+    
+    suspend fun deleteCard(userId: String, cardId: String) {
+        api.deleteCard(userId, cardId)
+    }
+}
+```
+
+## Best Practices
+
+### Save Token Immediately
+
+```kotlin
+is PayMayaVaultResult.Success -> {
+    // Save token before showing success message
+    saveTokenToBackend(result.paymentTokenId)
+    showSuccess("Card saved successfully")
+}
+```
+
+### Associate with User Account
+
+```kotlin
+private fun saveTokenToBackend(paymentTokenId: String) {
+    api.savePaymentToken(
+        userId = currentUser.id,
+        tokenId = paymentTokenId,
+        createdAt = System.currentTimeMillis(),
+        deviceId = getDeviceId()
+    )
+}
+```
+
+### Display Card Information Safely
+
+```kotlin
+// Display card issuer, not full card number
+private fun displayCard(issuer: String) {
+    val icon = when (issuer.uppercase()) {
+        "VISA" -> R.drawable.ic_visa
+        "MASTERCARD" -> R.drawable.ic_mastercard
+        "JCB" -> R.drawable.ic_jcb
+        else -> R.drawable.ic_card_generic
+    }
+    
+    cardImageView.setImageResource(icon)
+    cardTextView.text = "$issuer card"
+}
+```
+
+### Handle Token Expiration
+
+```kotlin
+// Payment tokens have limited validity
+private fun processPayment(tokenId: String) {
+    try {
+        val result = backend.chargeToken(tokenId, amount)
+        if (result.error == "TOKEN_EXPIRED") {
+            // Prompt user to add card again
+            showRetokenizeDialog()
+        }
+    } catch (e: Exception) {
+        handlePaymentError(e)
+    }
+}
+```
+
+### Provide Clear UI
+
+```kotlin
+private fun showAddCardButton() {
+    addCardButton.setOnClickListener {
+        showDialog(
+            title = "Add Payment Card",
+            message = "Your card details will be securely stored " +
+                      "for faster checkout.",
+            positiveButton = "Continue" to { startCardTokenization() },
+            negativeButton = "Cancel" to { /* dismiss */ }
+        )
+    }
+}
+```
+
+### Customize Branding
+
+```kotlin
+val payMayaVaultClient = PayMayaVault.newBuilder()
+    .clientPublicKey(publicKey)
+    .environment(environment)
+    .logo(R.drawable.merchant_logo)  // Your brand logo
+    .build()
+```
+
+You can also customize colors and styles using Android themes:
+
+```xml
+<!-- res/values/styles.xml -->
+<style name="PayMayaVaultTheme" parent="Theme.AppCompat.Light">
+    <item name="colorPrimary">@color/brand_primary</item>
+    <item name="colorPrimaryDark">@color/brand_primary_dark</item>
+    <item name="colorAccent">@color/brand_accent</item>
+</style>
+```
+
+## Security Considerations
+
+<Warning>
+**Important Security Practices:**
+- Never log or display full payment tokens in production
+- Store tokens only in your secure backend, not in local storage
+- Use HTTPS for all API calls involving tokens
+- Implement proper authentication before tokenization
+- Notify users when cards are added or removed
+- Allow users to manage their saved cards
+</Warning>
+
+## Testing
+
+For Sandbox environment testing:
+
+- Use test credit cards from [PayMaya Test Cards](https://developers.paymaya.com/blog/entry/checkout-api-test-credit-card-account-numbers)
+- Tokens generated in Sandbox cannot be used in Production
+- Test both successful tokenization and cancellation flows
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Checkout" icon="shopping-cart" href="/checkout/overview">
+    Process immediate payments with Checkout
+  </Card>
+  <Card title="Pay With PayMaya" icon="wallet" href="/pay-with-paymaya/overview">
+    Explore PayMaya wallet payments
+  </Card>
+</CardGroup>

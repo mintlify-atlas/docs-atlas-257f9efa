@@ -1,0 +1,273 @@
+---
+title: PayMayaCheckout
+description: Main checkout client interface for initiating checkout payments
+---
+
+## Overview
+
+The `PayMayaCheckout` interface provides methods to initiate checkout payments, handle payment results, and check payment status.
+
+## Creating an Instance
+
+Use the builder pattern to create a `PayMayaCheckout` instance:
+
+```kotlin
+val checkout = PayMayaCheckout.newBuilder()
+    .clientPublicKey("your-public-key")
+    .environment(PayMayaEnvironment.SANDBOX)
+    .logLevel(LogLevel.INFO)
+    .build()
+```
+
+## Methods
+
+### startCheckoutActivityForResult
+
+Initiates the checkout flow. Use `onActivityResult` to get the result.
+
+```kotlin
+fun startCheckoutActivityForResult(
+    activity: Activity,
+    request: CheckoutRequest
+)
+```
+
+<ParamField path="activity" type="Activity" required>
+  Current activity from which the checkout will be launched.
+</ParamField>
+
+<ParamField path="request" type="CheckoutRequest" required>
+  Checkout request containing all information about the payment.
+</ParamField>
+
+#### Example
+
+```kotlin
+val request = CheckoutRequest(
+    totalAmount = TotalAmount(
+        value = BigDecimal("100.00"),
+        currency = "PHP"
+    ),
+    items = listOf(
+        Item(
+            name = "Sample Item",
+            totalAmount = TotalAmount(
+                value = BigDecimal("100.00"),
+                currency = "PHP"
+            )
+        )
+    ),
+    requestReferenceNumber = "REF-123456",
+    redirectUrl = RedirectUrl(
+        success = "https://example.com/success",
+        failure = "https://example.com/failure",
+        cancel = "https://example.com/cancel"
+    )
+)
+
+checkout.startCheckoutActivityForResult(this, request)
+```
+
+### onActivityResult
+
+Gets the payment result. Call it from your Activity's `onActivityResult` to get the result of the payment.
+
+```kotlin
+fun onActivityResult(
+    requestCode: Int,
+    resultCode: Int,
+    data: Intent?
+): PayMayaCheckoutResult?
+```
+
+<ParamField path="requestCode" type="Int" required>
+  Request code from Activity's onActivityResult.
+</ParamField>
+
+<ParamField path="resultCode" type="Int" required>
+  Result code from Activity's onActivityResult.
+</ParamField>
+
+<ParamField path="data" type="Intent?" required>
+  Intent data from Activity's onActivityResult.
+</ParamField>
+
+**Returns:** Non-null `PayMayaCheckoutResult` if the completed activity was the activity started by `startCheckoutActivityForResult`, null otherwise.
+
+#### Example
+
+```kotlin
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    
+    val result = checkout.onActivityResult(requestCode, resultCode, data)
+    result?.let {
+        when (it) {
+            is PayMayaCheckoutResult.Success -> {
+                // Payment successful
+                Log.d("Checkout", "Success: ${it.checkoutId}")
+            }
+            is PayMayaCheckoutResult.Cancel -> {
+                // Payment canceled
+                Log.d("Checkout", "Canceled")
+            }
+            is PayMayaCheckoutResult.Failure -> {
+                // Payment failed
+                Log.e("Checkout", "Failed: ${it.exception.message}")
+            }
+        }
+    }
+}
+```
+
+### checkPaymentStatus
+
+Checks the status of a payment. This method is synchronous - do not call it from the Main thread.
+
+```kotlin
+fun checkPaymentStatus(id: String): CheckPaymentStatusResult
+```
+
+<ParamField path="id" type="String" required>
+  The checkout ID to check the status for.
+</ParamField>
+
+**Returns:** `CheckPaymentStatusResult` containing the payment status.
+
+#### Example
+
+```kotlin
+// Run on background thread
+lifecycleScope.launch(Dispatchers.IO) {
+    val statusResult = checkout.checkPaymentStatus(checkoutId)
+    
+    withContext(Dispatchers.Main) {
+        when (statusResult) {
+            is CheckPaymentStatusResult.Success -> {
+                // Status retrieved successfully
+                val status = statusResult.status
+            }
+            is CheckPaymentStatusResult.Cancel -> {
+                // Check was canceled
+            }
+            is CheckPaymentStatusResult.Failure -> {
+                // Check failed
+                Log.e("Checkout", "Error: ${statusResult.exception.message}")
+            }
+        }
+    }
+}
+```
+
+## Builder
+
+The `PayMayaCheckout.Builder` interface provides methods to configure the checkout client.
+
+### clientPublicKey
+
+Sets the client public key. **Required.**
+
+```kotlin
+fun clientPublicKey(value: String): Builder
+```
+
+<ParamField path="value" type="String" required>
+  Your PayMaya public API key.
+</ParamField>
+
+### environment
+
+Sets the environment type (sandbox or production). **Required.**
+
+```kotlin
+fun environment(value: PayMayaEnvironment): Builder
+```
+
+<ParamField path="value" type="PayMayaEnvironment" required>
+  Either `PayMayaEnvironment.SANDBOX` or `PayMayaEnvironment.PRODUCTION`.
+</ParamField>
+
+### logLevel
+
+Sets the log level. **Optional.**
+
+```kotlin
+fun logLevel(value: LogLevel): Builder
+```
+
+<ParamField path="value" type="LogLevel">
+  Log level for SDK logging. See `LogLevel` enum for available options.
+</ParamField>
+
+### build
+
+Builds the PayMayaCheckout client.
+
+```kotlin
+fun build(): PayMayaCheckout
+```
+
+**Returns:** Configured `PayMayaCheckout` instance.
+
+## Full Example
+
+```kotlin
+class CheckoutActivity : AppCompatActivity() {
+    
+    private lateinit var checkout: PayMayaCheckout
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        // Initialize checkout client
+        checkout = PayMayaCheckout.newBuilder()
+            .clientPublicKey("pk-test-your-key")
+            .environment(PayMayaEnvironment.SANDBOX)
+            .logLevel(LogLevel.DEBUG)
+            .build()
+        
+        // Start checkout
+        val request = CheckoutRequest(
+            totalAmount = TotalAmount(
+                value = BigDecimal("100.00"),
+                currency = "PHP"
+            ),
+            items = listOf(
+                Item(
+                    name = "Product Name",
+                    totalAmount = TotalAmount(
+                        value = BigDecimal("100.00"),
+                        currency = "PHP"
+                    )
+                )
+            ),
+            requestReferenceNumber = "ORDER-${System.currentTimeMillis()}",
+            redirectUrl = RedirectUrl(
+                success = "https://example.com/success",
+                failure = "https://example.com/failure",
+                cancel = "https://example.com/cancel"
+            )
+        )
+        
+        checkout.startCheckoutActivityForResult(this, request)
+    }
+    
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        
+        checkout.onActivityResult(requestCode, resultCode, data)?.let { result ->
+            when (result) {
+                is PayMayaCheckoutResult.Success -> {
+                    Toast.makeText(this, "Payment Success!", Toast.LENGTH_SHORT).show()
+                }
+                is PayMayaCheckoutResult.Cancel -> {
+                    Toast.makeText(this, "Payment Canceled", Toast.LENGTH_SHORT).show()
+                }
+                is PayMayaCheckoutResult.Failure -> {
+                    Toast.makeText(this, "Payment Failed: ${result.exception.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+}
+```

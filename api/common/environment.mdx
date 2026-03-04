@@ -1,0 +1,41 @@
+---
+title: PayMayaEnvironment
+description: Environment type enumeration for configuring the SDK
+---
+
+## Overview
+
+The `PayMayaEnvironment` enum specifies which PayMaya environment the SDK should connect to.
+
+## Definition
+
+```kotlin
+package com.paymaya.sdk.android.common
+
+enum class PayMayaEnvironment {
+    SANDBOX,
+    PRODUCTION
+}
+```
+
+## Values
+
+### SANDBOX
+
+Use the sandbox environment for testing and development. This environment uses test credentials and does not process real transactions.
+
+### PRODUCTION
+
+Use the production environment for live transactions. This environment processes real payments and requires production API keys.
+
+## Usage
+
+The environment is typically set during SDK initialization:
+
+```kotlin
+PayMayaConfig.environment = PayMayaEnvironment.SANDBOX
+```
+
+## See Also
+
+- [Environment Configuration](/guides/environment-configuration) - Learn how to configure the SDK environment

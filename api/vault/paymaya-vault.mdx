@@ -1,0 +1,121 @@
+---
+title: PayMayaVault
+description: PayMaya Payment Vault client interface for tokenizing card details
+---
+
+The `PayMayaVault` interface provides methods to tokenize customer credit or debit card details. The resulting payment token can be used for payments and customer card addition.
+
+## Builder
+
+Create a new `PayMayaVault` instance using the builder pattern:
+
+```kotlin
+val vault = PayMayaVault.newBuilder()
+    .clientPublicKey("your-public-key")
+    .environment(PayMayaEnvironment.SANDBOX)
+    .logLevel(LogLevel.INFO)
+    .logo(R.drawable.your_logo)
+    .build()
+```
+
+### Builder Methods
+
+<ParamField path="clientPublicKey" type="(value: String) -> Builder" required>
+  Sets the client public key. This is required to authenticate API requests.
+</ParamField>
+
+<ParamField path="environment" type="(value: PayMayaEnvironment) -> Builder" required>
+  Sets the environment type. Use `PayMayaEnvironment.SANDBOX` for testing or `PayMayaEnvironment.PRODUCTION` for live transactions.
+</ParamField>
+
+<ParamField path="logLevel" type="(value: LogLevel) -> Builder">
+  Sets the log level for debugging. See [LogLevel](/api/common/log-level) for available options. Optional.
+</ParamField>
+
+<ParamField path="logo" type="(@DrawableRes value: Int) -> Builder">
+  Sets a custom logo drawable resource. Styles can also be used to customize the logo and other UI elements. Optional.
+</ParamField>
+
+<ParamField path="build" type="() -> PayMayaVault">
+  Builds and returns the configured `PayMayaVault` instance.
+</ParamField>
+
+## Methods
+
+### startTokenizeCardActivityForResult
+
+```kotlin
+fun startTokenizeCardActivityForResult(activity: Activity)
+```
+
+Initiates the card tokenization flow. This launches an activity that allows customers to enter their credit or debit card details securely. The payment token created is valid for a limited time and can be used only once in payment transactions before it expires.
+
+<ParamField path="activity" type="Activity" required>
+  The current activity from which to launch the tokenization screen.
+</ParamField>
+
+### onActivityResult
+
+```kotlin
+fun onActivityResult(
+    requestCode: Int,
+    resultCode: Int,
+    data: Intent?
+): PayMayaVaultResult?
+```
+
+Retrieves the result of the card tokenization process. Call this method from your Activity's `onActivityResult` callback.
+
+<ParamField path="requestCode" type="Int" required>
+  The request code from `onActivityResult`.
+</ParamField>
+
+<ParamField path="resultCode" type="Int" required>
+  The result code from `onActivityResult`.
+</ParamField>
+
+<ParamField path="data" type="Intent?" required>
+  The intent data from `onActivityResult`.
+</ParamField>
+
+**Returns:** A [PayMayaVaultResult](/api/vault/vault-result) object if the completed activity was started by `startTokenizeCardActivityForResult`, or `null` otherwise.
+
+## Example Usage
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    private lateinit var vault: PayMayaVault
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        vault = PayMayaVault.newBuilder()
+            .clientPublicKey("pk-test-abc123")
+            .environment(PayMayaEnvironment.SANDBOX)
+            .logLevel(LogLevel.DEBUG)
+            .build()
+    }
+
+    fun tokenizeCard() {
+        vault.startTokenizeCardActivityForResult(this)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        
+        val result = vault.onActivityResult(requestCode, resultCode, data)
+        when (result) {
+            is PayMayaVaultResult.Success -> {
+                // Use result.paymentTokenId for payment
+                Log.d("Vault", "Token: ${result.paymentTokenId}")
+            }
+            is PayMayaVaultResult.Cancel -> {
+                Log.d("Vault", "User canceled")
+            }
+            null -> {
+                // Not a vault result
+            }
+        }
+    }
+}
+```

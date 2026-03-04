@@ -1,0 +1,475 @@
+---
+title: Error Handling
+description: Learn about exception types and error handling patterns in the PayMaya Android SDK
+---
+
+The PayMaya Android SDK provides several exception types to help you handle errors gracefully in your application. Understanding these exceptions and how to handle them is crucial for providing a good user experience.
+
+## Exception Types
+
+The SDK defines four main exception types in the `com.paymaya.sdk.android.common.exceptions` package:
+
+### BadRequestException
+
+Thrown when the server returns a 400 (Bad Request) or 401 (Unauthorized) HTTP status code.
+
+```kotlin
+class BadRequestException(
+    message: String,
+    val error: BaseError
+) : Exception(message)
+```
+
+<ResponseField name="message" type="String">
+  Detail message of the exception
+</ResponseField>
+
+<ResponseField name="error" type="BaseError">
+  Detailed error information from the server
+</ResponseField>
+
+Common causes:
+- Invalid API key
+- Malformed request data
+- Missing required fields
+- Invalid field values
+- Authentication failures
+
+### HttpException
+
+Thrown when an unknown HTTP exception occurs.
+
+```kotlin
+class HttpException(
+    val code: Int,
+    message: String
+) : Exception(message)
+```
+
+<ResponseField name="code" type="Int">
+  HTTP response code
+</ResponseField>
+
+<ResponseField name="message" type="String">
+  HTTP response message
+</ResponseField>
+
+Common causes:
+- Server errors (5xx status codes)
+- Network timeouts
+- Unexpected HTTP responses
+- Service unavailability
+
+### InternalException
+
+Thrown when an unexpected response from the backend is retrieved.
+
+```kotlin
+class InternalException(
+    message: String,
+    cause: Throwable? = null
+) : Exception(message, cause)
+```
+
+<ResponseField name="message" type="String">
+  Detail message
+</ResponseField>
+
+<ResponseField name="cause" type="Throwable?" optional>
+  Optional cause of the exception
+</ResponseField>
+
+Common causes:
+- Unexpected response format
+- JSON parsing errors
+- Internal SDK errors
+- API response inconsistencies
+
+### PaymentFailedException
+
+Thrown when a payment fails.
+
+```kotlin
+object PaymentFailedException : Exception()
+```
+
+This is a singleton exception indicating that the payment transaction failed.
+
+Common causes:
+- Insufficient funds
+- Card declined
+- Payment authentication failed
+- Transaction timeout
+
+## Handling Exceptions in Results
+
+Exceptions are returned as part of result objects rather than being thrown directly. This allows for cleaner error handling.
+
+### Checkout Result Handling
+
+```kotlin
+import com.paymaya.sdk.android.checkout.PayMayaCheckoutResult
+import com.paymaya.sdk.android.common.exceptions.BadRequestException
+import com.paymaya.sdk.android.common.exceptions.HttpException
+import com.paymaya.sdk.android.common.exceptions.InternalException
+import com.paymaya.sdk.android.common.exceptions.PaymentFailedException
+import android.util.Log
+import android.widget.Toast
+
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    payMayaCheckoutClient.onActivityResult(requestCode, resultCode, data)?.let {
+        processCheckoutResult(it)
+    }
+}
+
+private fun processCheckoutResult(result: PayMayaCheckoutResult) {
+    when (result) {
+        is PayMayaCheckoutResult.Success -> {
+            val message = "Success, checkoutId: ${result.checkoutId}"
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            // Update UI for successful payment
+            navigateToSuccessScreen()
+        }
+
+        is PayMayaCheckoutResult.Cancel -> {
+            val message = "Canceled, checkoutId: ${result.checkoutId}"
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            // Handle cancelation
+            showCanceledState()
+        }
+
+        is PayMayaCheckoutResult.Failure -> {
+            handleCheckoutFailure(result)
+        }
+    }
+}
+
+private fun handleCheckoutFailure(result: PayMayaCheckoutResult.Failure) {
+    val checkoutId = result.checkoutId
+    val exception = result.exception
+    
+    when (exception) {
+        is BadRequestException -> {
+            // Handle bad request (400/401)
+            Log.e(TAG, "Bad request: ${exception.message}")
+            Log.e(TAG, "Error details: ${exception.error}")
+            
+            // Show user-friendly message
+            Toast.makeText(
+                this,
+                "Payment request failed. Please check your information.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        
+        is HttpException -> {
+            // Handle HTTP errors
+            Log.e(TAG, "HTTP error ${exception.code}: ${exception.message}")
+            
+            val message = when (exception.code) {
+                in 500..599 -> "Server error. Please try again later."
+                else -> "Network error. Please check your connection."
+            }
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        }
+        
+        is InternalException -> {
+            // Handle internal SDK errors
+            Log.e(TAG, "Internal error: ${exception.message}", exception.cause)
+            Toast.makeText(
+                this,
+                "An unexpected error occurred. Please try again.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        
+        is PaymentFailedException -> {
+            // Handle payment failure
+            Log.e(TAG, "Payment failed for checkoutId: $checkoutId")
+            Toast.makeText(
+                this,
+                "Payment failed. Please try again or use a different payment method.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        
+        else -> {
+            // Handle unknown exceptions
+            Log.e(TAG, "Unknown error: ${exception.message}", exception)
+            Toast.makeText(
+                this,
+                "An error occurred: ${exception.message}",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+    
+    // Navigate to error screen or allow retry
+    showRetryOption(checkoutId)
+}
+```
+
+### Pay With PayMaya Result Handling
+
+```kotlin
+import com.paymaya.sdk.android.paywithpaymaya.PayWithPayMayaResult
+import com.paymaya.sdk.android.paywithpaymaya.SinglePaymentResult
+
+private fun handlePayWithPayMayaResult(result: PayWithPayMayaResult) {
+    when (result) {
+        is SinglePaymentResult.Success -> {
+            val message = "Success, paymentId: ${result.paymentId}"
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        }
+
+        is SinglePaymentResult.Cancel -> {
+            val message = "Canceled, paymentId: ${result.paymentId}"
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        }
+
+        is SinglePaymentResult.Failure -> {
+            val paymentId = result.paymentId
+            val exception = result.exception
+            
+            Log.e(TAG, "Payment failed: ${exception.message}", exception)
+            
+            when (exception) {
+                is BadRequestException -> {
+                    showBadRequestError(exception.error)
+                }
+                is HttpException -> {
+                    showNetworkError(exception.code)
+                }
+                else -> {
+                    showGenericError(exception.message)
+                }
+            }
+        }
+    }
+}
+```
+
+### Check Payment Status Error Handling
+
+```kotlin
+import com.paymaya.sdk.android.common.CheckPaymentStatusResult
+
+private fun handlePaymentStatusResult(result: CheckPaymentStatusResult) {
+    when (result) {
+        is CheckPaymentStatusResult.Success -> {
+            val status = result.status
+            showPaymentStatus(status)
+        }
+        
+        is CheckPaymentStatusResult.Cancel -> {
+            Toast.makeText(this, "Status check canceled", Toast.LENGTH_LONG).show()
+        }
+        
+        is CheckPaymentStatusResult.Failure -> {
+            val exception = result.exception
+            
+            when (exception) {
+                is BadRequestException -> {
+                    // Invalid payment ID or unauthorized
+                    Log.e(TAG, "Bad request checking status: ${exception.error}")
+                    showError("Unable to check payment status. Please verify the payment ID.")
+                }
+                
+                is HttpException -> {
+                    // Network or server error
+                    Log.e(TAG, "HTTP error checking status: ${exception.code}")
+                    showError("Network error. Please try again.")
+                }
+                
+                is InternalException -> {
+                    // Unexpected response
+                    Log.e(TAG, "Internal error checking status", exception)
+                    showError("An unexpected error occurred.")
+                }
+                
+                else -> {
+                    Log.e(TAG, "Unknown error checking status", exception)
+                    showError("Failed to check payment status.")
+                }
+            }
+        }
+    }
+}
+```
+
+## Error Response Details
+
+When a `BadRequestException` occurs, you can access detailed error information through the `error` property:
+
+```kotlin
+if (exception is BadRequestException) {
+    val error = exception.error
+    
+    // Log detailed error information
+    Log.d(TAG, "Error type: ${error.javaClass.simpleName}")
+    Log.d(TAG, "Error details: $error")
+    
+    // The error object extends BaseError and may contain:
+    // - Error codes
+    // - Field-specific validation errors
+    // - Additional error parameters
+}
+```
+
+## Best Practices
+
+<Tip>
+1. **Always handle all result types** - Success, Cancel, and Failure
+2. **Log exceptions for debugging** - Use appropriate log levels
+3. **Show user-friendly messages** - Don't expose technical details to users
+4. **Provide retry options** - Allow users to retry failed operations
+5. **Handle network errors gracefully** - Check connectivity and inform users
+6. **Validate before submission** - Reduce BadRequestExceptions by validating input
+</Tip>
+
+## Common Error Scenarios
+
+### Invalid API Key
+
+```kotlin
+// Throws BadRequestException with 401 status
+val payMayaCheckoutClient = PayMayaCheckout.newBuilder()
+    .clientPublicKey("invalid-key")
+    .environment(PayMayaEnvironment.SANDBOX)
+    .build()
+```
+
+<Warning>
+Always verify your API key is correct for the environment you're using. Sandbox keys won't work in production and vice versa.
+</Warning>
+
+### Network Connectivity Issues
+
+```kotlin
+// Check network before making requests
+fun isNetworkAvailable(): Boolean {
+    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = connectivityManager.activeNetwork ?: return false
+    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+    return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+}
+
+fun initiatePayment() {
+    if (!isNetworkAvailable()) {
+        showError("No internet connection. Please check your network.")
+        return
+    }
+    
+    // Proceed with payment
+    payMayaCheckoutClient.startCheckoutActivityForResult(this, request)
+}
+```
+
+### Malformed Request Data
+
+```kotlin
+// Validate data before creating request
+fun validateCheckoutRequest(amount: BigDecimal, items: List<Item>): Boolean {
+    if (amount <= BigDecimal.ZERO) {
+        showError("Amount must be greater than zero")
+        return false
+    }
+    
+    if (items.isEmpty()) {
+        showError("Cart is empty")
+        return false
+    }
+    
+    return true
+}
+```
+
+## Retry Logic
+
+Implement retry logic for transient errors:
+
+```kotlin
+suspend fun checkPaymentStatusWithRetry(
+    paymentId: String,
+    maxRetries: Int = 3
+): CheckPaymentStatusResult {
+    var lastException: Exception? = null
+    
+    repeat(maxRetries) { attempt ->
+        val result = withContext(Dispatchers.IO) {
+            payMayaCheckoutClient.checkPaymentStatus(paymentId)
+        }
+        
+        when (result) {
+            is CheckPaymentStatusResult.Success -> return result
+            is CheckPaymentStatusResult.Cancel -> return result
+            is CheckPaymentStatusResult.Failure -> {
+                lastException = result.exception
+                
+                // Retry on network errors
+                if (result.exception is HttpException) {
+                    val httpException = result.exception as HttpException
+                    if (httpException.code in 500..599) {
+                        // Server error, wait before retry
+                        delay(1000L * (attempt + 1))
+                        // Continue to next retry
+                    } else {
+                        // Client error, don't retry
+                        return result
+                    }
+                } else {
+                    // Don't retry other exception types
+                    return result
+                }
+            }
+        }
+    }
+    
+    // All retries exhausted
+    return CheckPaymentStatusResult.Failure(lastException ?: Exception("Max retries exceeded"))
+}
+```
+
+## Error Reporting
+
+Consider implementing error reporting for production:
+
+```kotlin
+fun reportError(exception: Exception, context: String) {
+    // Log to your analytics/crash reporting service
+    when (exception) {
+        is BadRequestException -> {
+            Analytics.logEvent("payment_bad_request", mapOf(
+                "context" to context,
+                "error" to exception.error.toString()
+            ))
+        }
+        is HttpException -> {
+            Analytics.logEvent("payment_http_error", mapOf(
+                "context" to context,
+                "code" to exception.code,
+                "message" to exception.message
+            ))
+        }
+        is InternalException -> {
+            CrashReporting.logException(exception)
+        }
+        is PaymentFailedException -> {
+            Analytics.logEvent("payment_failed", mapOf(
+                "context" to context
+            ))
+        }
+    }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Configuration" href="/guides/environment-configuration" icon="gear">
+    Configure SDK for different environments
+  </Card>
+  <Card title="Testing in Sandbox" href="/guides/testing-sandbox" icon="vial">
+    Test your integration with sandbox
+  </Card>
+</CardGroup>

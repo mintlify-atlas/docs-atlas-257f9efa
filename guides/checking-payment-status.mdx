@@ -1,0 +1,351 @@
+---
+title: Checking Payment Status
+description: Learn how to check payment status using the checkPaymentStatus method and understand payment status values
+---
+
+The PayMaya Android SDK provides a `checkPaymentStatus()` method to check the current status of a payment transaction. This is useful for verifying payment results or checking the status of payments that may have been interrupted.
+
+## Using checkPaymentStatus
+
+The `checkPaymentStatus()` method is available on both `PayMayaCheckout` and `PayWithPayMaya` clients.
+
+<Warning>
+The `checkPaymentStatus()` method is synchronous and performs a network request. Always call it from a background thread, not the Main thread.
+</Warning>
+
+### Basic Usage
+
+```kotlin
+import com.paymaya.sdk.android.common.CheckPaymentStatusResult
+import kotlinx.coroutines.*
+
+// Assuming you have a checkoutId or paymentId from a previous transaction
+val checkoutId = "checkout-id-from-transaction"
+
+launch {
+    // Run on background thread
+    val result = withContext(Dispatchers.IO) {
+        payMayaCheckoutClient.checkPaymentStatus(checkoutId)
+    }
+    
+    // Handle result on main thread
+    handlePaymentStatusResult(result)
+}
+```
+
+### With Checkout
+
+```kotlin
+import com.paymaya.sdk.android.checkout.PayMayaCheckout
+import com.paymaya.sdk.android.common.CheckPaymentStatusResult
+import kotlinx.coroutines.*
+
+class CartPresenter {
+    private lateinit var payMayaCheckoutClient: PayMayaCheckout
+    
+    fun checkRecentPaymentStatus(checkoutId: String) {
+        launch {
+            showProgressBar()
+            
+            val result = withContext(Dispatchers.IO) {
+                // checkPaymentStatus() is blocking, run on IO thread
+                payMayaCheckoutClient.checkPaymentStatus(checkoutId)
+            }
+            
+            hideProgressBar()
+            handlePaymentStatusResult(result)
+        }
+    }
+}
+```
+
+### With Pay With PayMaya
+
+```kotlin
+import com.paymaya.sdk.android.paywithpaymaya.PayWithPayMaya
+import com.paymaya.sdk.android.common.CheckPaymentStatusResult
+import kotlinx.coroutines.*
+
+fun checkSinglePaymentStatus(paymentId: String) {
+    launch {
+        val result = withContext(Dispatchers.IO) {
+            payWithPayMayaClient.checkPaymentStatus(paymentId)
+        }
+        
+        handlePaymentStatusResult(result)
+    }
+}
+```
+
+## CheckPaymentStatusResult
+
+The `checkPaymentStatus()` method returns a `CheckPaymentStatusResult` sealed class with three possible outcomes:
+
+### Success
+
+Returned when the status check succeeds. Contains the current payment status.
+
+```kotlin
+CheckPaymentStatusResult.Success(
+    status: PaymentStatus
+)
+```
+
+### Cancel
+
+Returned when the status check is canceled.
+
+```kotlin
+CheckPaymentStatusResult.Cancel
+```
+
+### Failure
+
+Returned when the status check fails. Contains an exception with error details.
+
+```kotlin
+CheckPaymentStatusResult.Failure(
+    exception: Exception
+)
+```
+
+## Handling Results
+
+```kotlin
+fun handlePaymentStatusResult(result: CheckPaymentStatusResult) {
+    when (result) {
+        is CheckPaymentStatusResult.Success -> {
+            val status = result.status
+            Toast.makeText(context, "Payment status: $status", Toast.LENGTH_LONG).show()
+            
+            // Handle specific statuses
+            when (status) {
+                PaymentStatus.PAYMENT_SUCCESS -> {
+                    // Payment successful, update UI
+                    showSuccessScreen()
+                }
+                PaymentStatus.PAYMENT_FAILED -> {
+                    // Payment failed, show error
+                    showPaymentFailedError()
+                }
+                PaymentStatus.PENDING_PAYMENT -> {
+                    // Still pending, may need to check again
+                    showPendingStatus()
+                }
+                else -> {
+                    // Handle other statuses
+                    showStatus(status.name)
+                }
+            }
+        }
+        
+        is CheckPaymentStatusResult.Cancel -> {
+            Toast.makeText(context, "Status check canceled", Toast.LENGTH_LONG).show()
+        }
+        
+        is CheckPaymentStatusResult.Failure -> {
+            val message = "Status check failed: ${result.exception.message}"
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            Log.e(TAG, "Payment status check failed", result.exception)
+        }
+    }
+}
+```
+
+## Payment Status Values
+
+The `PaymentStatus` enum contains the following values:
+
+### Token Statuses
+
+<ResponseField name="PENDING_TOKEN" type="PaymentStatus">
+  Token is pending
+</ResponseField>
+
+### Payment Initiation
+
+<ResponseField name="PENDING_PAYMENT" type="PaymentStatus">
+  Initial payment status of the checkout transaction
+</ResponseField>
+
+<ResponseField name="PAYMENT_EXPIRED" type="PaymentStatus">
+  Payment transaction was not executed and expiration time has been reached
+</ResponseField>
+
+### Authentication Statuses
+
+<ResponseField name="FOR_AUTHENTICATION" type="PaymentStatus">
+  Payment transaction is waiting for authentication
+</ResponseField>
+
+<ResponseField name="AUTHENTICATING" type="PaymentStatus">
+  Payment transaction is currently authenticating
+</ResponseField>
+
+<ResponseField name="AUTH_SUCCESS" type="PaymentStatus">
+  Authentication has been successfully executed. Authentication may be in the form of 3DS authentication for card transactions.
+</ResponseField>
+
+<ResponseField name="AUTH_FAILED" type="PaymentStatus">
+  Authentication of payment has failed
+</ResponseField>
+
+### Payment Processing
+
+<ResponseField name="PAYMENT_PROCESSING" type="PaymentStatus">
+  Payment is processing
+</ResponseField>
+
+<ResponseField name="PAYMENT_SUCCESS" type="PaymentStatus">
+  Payment is successfully processed
+</ResponseField>
+
+<ResponseField name="PAYMENT_FAILED" type="PaymentStatus">
+  Payment is not successfully processed
+</ResponseField>
+
+### Post-Payment Statuses
+
+<ResponseField name="VOIDED" type="PaymentStatus">
+  A successfully processed payment has been reversed (usually before a settlement cut-off for card-based payments)
+</ResponseField>
+
+<ResponseField name="REFUNDED" type="PaymentStatus">
+  A successfully processed payment has been fully or partially reversed (usually after a settlement cut-off for card-based payments)
+</ResponseField>
+
+## Automatic Status Checking
+
+<Info>
+The SDK automatically checks payment status when a user closes the payment activity (e.g., by pressing the Back button) if the payment ID has been retrieved.
+</Info>
+
+The automatic status check maps payment statuses to result types:
+
+- `PAYMENT_SUCCESS` → `Success` result
+- `AUTH_FAILED` or `PAYMENT_FAILED` → `Failure` result
+- All other statuses → `Cancel` result
+
+This behavior applies to:
+- Checkout activities
+- Pay With PayMaya activities
+
+## Common Use Cases
+
+### 1. Verify Payment After Activity Result
+
+```kotlin
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    payMayaCheckoutClient.onActivityResult(requestCode, resultCode, data)?.let { result ->
+        when (result) {
+            is PayMayaCheckoutResult.Success -> {
+                // Optionally verify the status
+                launch {
+                    val statusResult = withContext(Dispatchers.IO) {
+                        payMayaCheckoutClient.checkPaymentStatus(result.checkoutId)
+                    }
+                    // Handle status result
+                }
+            }
+            // Handle other results
+        }
+    }
+}
+```
+
+### 2. Polling for Payment Completion
+
+```kotlin
+fun pollPaymentStatus(paymentId: String, maxAttempts: Int = 10) {
+    var attempts = 0
+    
+    launch {
+        while (attempts < maxAttempts) {
+            delay(3000) // Wait 3 seconds between checks
+            
+            val result = withContext(Dispatchers.IO) {
+                payMayaCheckoutClient.checkPaymentStatus(paymentId)
+            }
+            
+            if (result is CheckPaymentStatusResult.Success) {
+                when (result.status) {
+                    PaymentStatus.PAYMENT_SUCCESS,
+                    PaymentStatus.PAYMENT_FAILED,
+                    PaymentStatus.PAYMENT_EXPIRED -> {
+                        // Terminal status reached, stop polling
+                        handleFinalStatus(result.status)
+                        return@launch
+                    }
+                    else -> {
+                        // Still processing, continue polling
+                        attempts++
+                    }
+                }
+            } else {
+                // Error occurred, stop polling
+                handleStatusCheckError(result)
+                return@launch
+            }
+        }
+        
+        // Max attempts reached
+        handleTimeout()
+    }
+}
+```
+
+### 3. Manual Status Check Button
+
+```kotlin
+fun onCheckStatusButtonClicked() {
+    val paymentId = getLastPaymentId()
+    
+    if (paymentId == null) {
+        showMessage("No recent payment to check")
+        return
+    }
+    
+    launch {
+        showProgressBar()
+        
+        val result = withContext(Dispatchers.IO) {
+            payMayaCheckoutClient.checkPaymentStatus(paymentId)
+        }
+        
+        hideProgressBar()
+        
+        when (result) {
+            is CheckPaymentStatusResult.Success -> {
+                showMessage("Payment status: ${result.status}")
+            }
+            is CheckPaymentStatusResult.Cancel -> {
+                showMessage("Status check canceled")
+            }
+            is CheckPaymentStatusResult.Failure -> {
+                showMessage("Failed to check status: ${result.exception.message}")
+            }
+        }
+    }
+}
+```
+
+## Best Practices
+
+<Tip>
+1. **Always run on background thread** - Use `Dispatchers.IO` with coroutines
+2. **Handle all result types** - Success, Cancel, and Failure
+3. **Consider terminal statuses** - Stop checking once a final status is reached
+4. **Implement timeout** - Don't poll indefinitely
+5. **Show user feedback** - Display loading indicators during status checks
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Error Handling" href="/guides/error-handling" icon="triangle-exclamation">
+    Learn how to handle exceptions and errors
+  </Card>
+  <Card title="Checkout Integration" href="/api-reference/checkout" icon="credit-card">
+    Complete Checkout API reference
+  </Card>
+</CardGroup>

@@ -1,0 +1,69 @@
+---
+title: Introduction
+description: PayMaya Android SDK v2 enables seamless payment integration for Android applications with support for Checkout, Pay With PayMaya, and Vault.
+---
+
+The PayMaya Android SDK v2 is a library that allows you to integrate PayMaya payments into your Android applications. It provides a comprehensive set of payment methods with both WebView and native implementations.
+
+## Key features
+
+The SDK supports three main payment methods:
+
+<CardGroup cols={3}>
+  <Card title="Checkout" icon="shopping-cart" href="/checkout/overview">
+    Accept payments through a secure WebView-based checkout flow
+  </Card>
+  
+  <Card title="Pay With PayMaya" icon="wallet" href="/pay-with-paymaya/overview">
+    Single payments and recurring wallet links via PayMaya accounts
+  </Card>
+  
+  <Card title="PayMaya Vault" icon="credit-card" href="/vault/overview">
+    Tokenize and vault customer cards using native activities
+  </Card>
+</CardGroup>
+
+## What you can build
+
+<AccordionGroup>
+  <Accordion title="E-commerce checkout">
+    Implement a complete checkout flow with buyer information, shopping cart items, and transaction details. The SDK handles the secure payment process through a hosted WebView.
+  </Accordion>
+  
+  <Accordion title="Single payments">
+    Accept one-time payments through PayMaya wallets without the complexity of a full checkout flow. Perfect for quick payments and donations.
+  </Accordion>
+  
+  <Accordion title="Recurring payments">
+    Create wallet links that enable charging PayMaya accounts later, ideal for subscription services and recurring billing.
+  </Accordion>
+  
+  <Accordion title="Card tokenization">
+    Securely tokenize customer credit cards using a native activity. Store tokens for future payments and improved returning customer experience.
+  </Accordion>
+</AccordionGroup>
+
+## Compatibility
+
+<Note>
+  The PayMaya Android SDK v2 requires Android OS version 6.0 Marshmallow (API level 23) or higher.
+</Note>
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Add the SDK to your Android project via Gradle
+  </Card>
+  
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Build your first payment integration in minutes
+  </Card>
+</CardGroup>
+
+## Demo application
+
+The SDK includes a demo application that showcases all payment methods using the Sandbox environment. You can explore the source code to see real-world implementation examples.
+
+For Sandbox testing, use the credit cards available at:
+[Credit Cards for Sandbox Testing](https://developers.paymaya.com/blog/entry/checkout-api-test-credit-card-account-numbers)

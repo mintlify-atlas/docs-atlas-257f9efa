@@ -1,0 +1,245 @@
+---
+title: Payment Results
+description: Result types for PayWithPayMaya operations
+---
+
+The SDK returns different result types depending on the operation performed.
+
+## PayWithPayMayaResult
+
+`PayWithPayMayaResult` is the sealed base class for all payment results. It has two subclasses:
+- [SinglePaymentResult](#singlepaymentresult) - Result of a single payment operation
+- [CreateWalletLinkResult](#createwalletlinkresult) - Result of a wallet link creation
+
+```kotlin
+sealed class PayWithPayMayaResult
+```
+
+## SinglePaymentResult
+
+Sealed class representing the result of a single payment operation. Has three possible variants:
+
+### Success
+
+Indicates the payment was successful.
+
+```kotlin
+class Success(
+    val paymentId: String
+) : SinglePaymentResult()
+```
+
+<ParamField path="paymentId" type="String">
+  Unique identifier for the completed payment
+</ParamField>
+
+### Cancel
+
+Indicates the payment was cancelled by the user.
+
+```kotlin
+class Cancel(
+    val paymentId: String? = null
+) : SinglePaymentResult()
+```
+
+<ParamField path="paymentId" type="String?">
+  Payment identifier if the payment was initiated before cancellation, null otherwise
+</ParamField>
+
+### Failure
+
+Indicates the payment failed.
+
+```kotlin
+class Failure(
+    val paymentId: String? = null,
+    val exception: Exception
+) : SinglePaymentResult()
+```
+
+<ParamField path="paymentId" type="String?">
+  Payment identifier if available, null otherwise
+</ParamField>
+
+<ParamField path="exception" type="Exception">
+  Exception containing detailed information about the failure reason
+</ParamField>
+
+### Example Usage
+
+```kotlin
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    
+    payWithPayMaya.onActivityResult(requestCode, resultCode, data)?.let { result ->
+        when (result) {
+            is SinglePaymentResult.Success -> {
+                // Payment successful
+                val paymentId = result.paymentId
+                showSuccessMessage("Payment completed: $paymentId")
+                // Update your backend, show confirmation, etc.
+            }
+            is SinglePaymentResult.Cancel -> {
+                // Payment cancelled
+                showCancelMessage("Payment was cancelled")
+                result.paymentId?.let { id ->
+                    // Payment was started but cancelled
+                    logCancelledPayment(id)
+                }
+            }
+            is SinglePaymentResult.Failure -> {
+                // Payment failed
+                val error = result.exception.message
+                showErrorMessage("Payment failed: $error")
+                Log.e("Payment", "Payment failed", result.exception)
+            }
+        }
+    }
+}
+```
+
+## CreateWalletLinkResult
+
+Sealed class representing the result of a wallet link creation. Has three possible variants:
+
+### Success
+
+Indicates the wallet link was created successfully.
+
+```kotlin
+class Success(
+    val linkId: String
+) : CreateWalletLinkResult()
+```
+
+<ParamField path="linkId" type="String">
+  Unique identifier for the created wallet link. Use this for future charges.
+</ParamField>
+
+### Cancel
+
+Indicates the wallet link creation was cancelled by the user.
+
+```kotlin
+class Cancel(
+    val linkId: String? = null
+) : CreateWalletLinkResult()
+```
+
+<ParamField path="linkId" type="String?">
+  Wallet link identifier if the link was initiated before cancellation, null otherwise
+</ParamField>
+
+### Failure
+
+Indicates the wallet link creation failed.
+
+```kotlin
+class Failure(
+    val linkId: String? = null,
+    val exception: Exception
+) : CreateWalletLinkResult()
+```
+
+<ParamField path="linkId" type="String?">
+  Wallet link identifier if available, null otherwise
+</ParamField>
+
+<ParamField path="exception" type="Exception">
+  Exception containing detailed information about the failure reason
+</ParamField>
+
+### Example Usage
+
+```kotlin
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    
+    payWithPayMaya.onActivityResult(requestCode, resultCode, data)?.let { result ->
+        when (result) {
+            is CreateWalletLinkResult.Success -> {
+                // Wallet link created successfully
+                val linkId = result.linkId
+                // Store linkId securely for future charges
+                saveWalletLinkId(linkId)
+                showSuccessMessage("Wallet linked successfully")
+            }
+            is CreateWalletLinkResult.Cancel -> {
+                // Wallet link cancelled
+                showCancelMessage("Wallet link was cancelled")
+                result.linkId?.let { id ->
+                    // Link was started but cancelled
+                    logCancelledLink(id)
+                }
+            }
+            is CreateWalletLinkResult.Failure -> {
+                // Wallet link failed
+                val error = result.exception.message
+                showErrorMessage("Wallet link failed: $error")
+                Log.e("WalletLink", "Link creation failed", result.exception)
+            }
+        }
+    }
+}
+```
+
+## CheckPaymentStatusResult
+
+Result type for the synchronous `checkPaymentStatus()` method.
+
+### Success
+
+```kotlin
+class Success(
+    val status: PaymentStatus
+) : CheckPaymentStatusResult()
+```
+
+<ParamField path="status" type="PaymentStatus">
+  Current payment status
+</ParamField>
+
+### Cancel
+
+```kotlin
+object Cancel : CheckPaymentStatusResult()
+```
+
+Indicates the status check was cancelled.
+
+### Failure
+
+```kotlin
+class Failure(
+    val exception: Exception
+) : CheckPaymentStatusResult()
+```
+
+<ParamField path="exception" type="Exception">
+  Exception containing detailed information about the failure reason
+</ParamField>
+
+### Example Usage
+
+```kotlin
+// Must be called from a background thread
+viewModelScope.launch(Dispatchers.IO) {
+    val result = payWithPayMaya.checkPaymentStatus(paymentId)
+    
+    withContext(Dispatchers.Main) {
+        when (result) {
+            is CheckPaymentStatusResult.Success -> {
+                val status = result.status
+                updateUI(status)
+            }
+            is CheckPaymentStatusResult.Cancel -> {
+                showMessage("Status check cancelled")
+            }
+            is CheckPaymentStatusResult.Failure -> {
+                showError("Failed to check status: ${result.exception.message}")
+            }
+        }
+    }
+}
+```

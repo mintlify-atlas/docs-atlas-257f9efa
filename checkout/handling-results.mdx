@@ -1,0 +1,331 @@
+---
+title: "Handling Checkout Results"
+description: "Process payment results and check payment status"
+---
+
+## Overview
+
+After the customer completes (or cancels) the checkout flow, the result is returned to your Activity's `onActivityResult()` method. You need to handle this result to determine the payment outcome.
+
+## Processing Results in onActivityResult
+
+Call `PayMayaCheckout.onActivityResult()` from your Activity's `onActivityResult()` method:
+
+```kotlin
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    payMayaCheckoutClient.onActivityResult(requestCode, resultCode, data)?.let {
+        processCheckoutResult(it)
+    }
+}
+```
+
+### Method Signature
+
+```kotlin
+fun onActivityResult(
+    requestCode: Int,
+    resultCode: Int,
+    data: Intent?
+): PayMayaCheckoutResult?
+```
+
+**Returns:**
+- Non-null `PayMayaCheckoutResult` if the completed activity was started by `startCheckoutActivityForResult()`
+- `null` if the result is from a different activity
+
+## PayMayaCheckoutResult Types
+
+The SDK returns one of three result types:
+
+### Success
+
+The payment was completed successfully:
+
+```kotlin
+is PayMayaCheckoutResult.Success -> {
+    val checkoutId = result.checkoutId
+    // Payment successful
+    showSuccessMessage("Payment completed! Checkout ID: $checkoutId")
+}
+```
+
+**Properties:**
+- `checkoutId: String` - Unique identifier for this checkout transaction
+
+### Cancel
+
+The payment was canceled by the user:
+
+```kotlin
+is PayMayaCheckoutResult.Cancel -> {
+    val checkoutId = result.checkoutId  // May be null
+    // Payment canceled
+    showCancelMessage("Payment canceled")
+}
+```
+
+**Properties:**
+- `checkoutId: String?` - Checkout ID if available, or `null` if canceled before ID was generated
+
+### Failure
+
+The payment failed due to an error:
+
+```kotlin
+is PayMayaCheckoutResult.Failure -> {
+    val checkoutId = result.checkoutId  // May be null
+    val exception = result.exception
+    // Payment failed
+    showErrorMessage("Payment failed: ${exception.message}")
+    
+    // Handle specific error types
+    if (exception is BadRequestException) {
+        Log.e(TAG, "Bad request: ${exception.error}")
+    }
+}
+```
+
+**Properties:**
+- `checkoutId: String?` - Checkout ID if available, or `null`
+- `exception: Exception` - Exception with detailed failure reason
+
+## Complete Example
+
+```kotlin
+import android.app.Activity
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
+import com.paymaya.sdk.android.checkout.PayMayaCheckout
+import com.paymaya.sdk.android.checkout.PayMayaCheckoutResult
+import com.paymaya.sdk.android.common.LogLevel
+import com.paymaya.sdk.android.common.PayMayaEnvironment
+import com.paymaya.sdk.android.common.exceptions.BadRequestException
+
+class PaymentActivity : Activity() {
+
+    private val payMayaCheckoutClient = PayMayaCheckout.newBuilder()
+        .clientPublicKey("pk-NCLk7JeDbX1m22ZRMDYO9bEPowNWT5J4aNIKIbcTy2a")
+        .environment(PayMayaEnvironment.SANDBOX)
+        .logLevel(LogLevel.WARN)
+        .build()
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        payMayaCheckoutClient.onActivityResult(requestCode, resultCode, data)?.let {
+            processCheckoutResult(it)
+        }
+    }
+
+    private fun processCheckoutResult(result: PayMayaCheckoutResult) {
+        when (result) {
+            is PayMayaCheckoutResult.Success -> {
+                val message = "Success, checkoutId: ${result.checkoutId}"
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                Log.i(TAG, message)
+                
+                // Update your backend, show success screen, etc.
+                navigateToSuccessScreen(result.checkoutId)
+            }
+
+            is PayMayaCheckoutResult.Cancel -> {
+                val message = "Canceled, checkoutId: ${result.checkoutId}"
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                Log.w(TAG, message)
+                
+                // Show canceled message, return to cart, etc.
+                navigateBackToCart()
+            }
+
+            is PayMayaCheckoutResult.Failure -> {
+                val message = "Failure, checkoutId: ${result.checkoutId}, exception: ${result.exception}"
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                Log.e(TAG, message)
+                
+                // Handle specific error types
+                if (result.exception is BadRequestException) {
+                    val error = (result.exception as BadRequestException).error
+                    Log.d(TAG, "BadRequest error details: $error")
+                }
+                
+                // Show error screen, allow retry, etc.
+                showErrorScreen(result.exception.message)
+            }
+        }
+    }
+
+    private fun navigateToSuccessScreen(checkoutId: String) {
+        // Navigate to success screen
+    }
+
+    private fun navigateBackToCart() {
+        // Return to cart or previous screen
+    }
+
+    private fun showErrorScreen(errorMessage: String?) {
+        // Show error screen with retry option
+    }
+
+    companion object {
+        private const val TAG = "PaymentActivity"
+    }
+}
+```
+
+## Automatic Status Checking
+
+If the user closes the Checkout Activity (e.g., by pressing the Back button), the SDK automatically checks the payment status if the `checkoutId` was retrieved:
+
+<Steps>
+  <Step title="User Closes Activity">
+    User presses Back button or closes the WebView
+  </Step>
+  <Step title="SDK Checks Status">
+    SDK calls the payment status API automatically (if `checkoutId` is available)
+  </Step>
+  <Step title="Status Mapped to Result">
+    Payment status is mapped to the appropriate `PayMayaCheckoutResult`:
+    - `PAYMENT_SUCCESS` → `PayMayaCheckoutResult.Success`
+    - `AUTH_FAILED` or `PAYMENT_FAILED` → `PayMayaCheckoutResult.Failure`
+    - Otherwise → `PayMayaCheckoutResult.Cancel`
+  </Step>
+</Steps>
+
+## Manual Status Checking
+
+You can manually check the payment status using the `checkPaymentStatus()` method:
+
+```kotlin
+import com.paymaya.sdk.android.common.CheckPaymentStatusResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+suspend fun checkStatus(checkoutId: String) {
+    // Call from background thread
+    val statusResult = withContext(Dispatchers.IO) {
+        payMayaCheckoutClient.checkPaymentStatus(checkoutId)
+    }
+    
+    when (statusResult) {
+        is CheckPaymentStatusResult.Success -> {
+            val status = statusResult.status
+            Log.i(TAG, "Payment status: $status")
+            // Handle status
+        }
+        is CheckPaymentStatusResult.Cancel -> {
+            Log.w(TAG, "Status check canceled")
+        }
+        is CheckPaymentStatusResult.Failure -> {
+            Log.e(TAG, "Status check failed: ${statusResult.exception}")
+        }
+    }
+}
+```
+
+<Warning>
+The `checkPaymentStatus()` method is synchronous and should not be called from the Main thread. Use coroutines or execute it on a background thread.
+</Warning>
+
+### Method Signature
+
+```kotlin
+fun checkPaymentStatus(id: String): CheckPaymentStatusResult
+```
+
+**Parameters:**
+- `id` - The `checkoutId` from the payment result
+
+**Returns:**
+- `CheckPaymentStatusResult.Success` with `PaymentStatus`
+- `CheckPaymentStatusResult.Cancel` if canceled
+- `CheckPaymentStatusResult.Failure` with exception
+
+## Error Handling
+
+### BadRequestException
+
+Occurs when the request is invalid:
+
+```kotlin
+import com.paymaya.sdk.android.common.exceptions.BadRequestException
+
+if (exception is BadRequestException) {
+    val error = exception.error
+    Log.e(TAG, "Bad request error: $error")
+    // error contains detailed information about what went wrong
+}
+```
+
+### Common Error Scenarios
+
+- **Invalid payment details**: Customer entered incorrect card information
+- **Insufficient funds**: Customer's card has insufficient balance
+- **Card declined**: Customer's card was declined by the issuer
+- **Network error**: Connection issue during payment processing
+- **API error**: Server-side error from PayMaya
+
+## Best Practices
+
+### Save Checkout ID
+
+```kotlin
+is PayMayaCheckoutResult.Success -> {
+    // Save checkout ID to your backend for reconciliation
+    saveToBackend(result.checkoutId)
+}
+```
+
+### Handle All Result Types
+
+```kotlin
+private fun processCheckoutResult(result: PayMayaCheckoutResult) {
+    // Always handle all three result types
+    when (result) {
+        is PayMayaCheckoutResult.Success -> { /* ... */ }
+        is PayMayaCheckoutResult.Cancel -> { /* ... */ }
+        is PayMayaCheckoutResult.Failure -> { /* ... */ }
+    }
+}
+```
+
+### Provide Retry Options
+
+```kotlin
+is PayMayaCheckoutResult.Failure -> {
+    // Allow user to retry the payment
+    showRetryDialog()
+}
+```
+
+### Log for Debugging
+
+```kotlin
+private fun processCheckoutResult(result: PayMayaCheckoutResult) {
+    // Log all results for debugging and analytics
+    when (result) {
+        is PayMayaCheckoutResult.Success -> {
+            Log.i(TAG, "Checkout success: ${result.checkoutId}")
+            analytics.logEvent("checkout_success", result.checkoutId)
+        }
+        is PayMayaCheckoutResult.Cancel -> {
+            Log.w(TAG, "Checkout canceled: ${result.checkoutId}")
+            analytics.logEvent("checkout_canceled")
+        }
+        is PayMayaCheckoutResult.Failure -> {
+            Log.e(TAG, "Checkout failed: ${result.exception}")
+            analytics.logEvent("checkout_failed", result.exception.message)
+        }
+    }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Pay With PayMaya" icon="wallet" href="/pay-with-paymaya/overview">
+    Explore PayMaya wallet payments
+  </Card>
+  <Card title="Vault" icon="lock" href="/vault/overview">
+    Learn about card tokenization
+  </Card>
+</CardGroup>

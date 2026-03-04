@@ -1,0 +1,202 @@
+---
+title: "PayMaya Vault Overview"
+description: "Introduction to card tokenization for secure payment processing"
+---
+
+PayMaya Vault allows you to securely tokenize customer credit and debit cards, creating payment tokens that can be used for transactions without handling sensitive card data directly.
+
+## What is PayMaya Vault?
+
+PayMaya Vault is a card tokenization service that helps you manage customer payment cards securely. It allows you to:
+
+- Collect card details from customers using a native SDK activity
+- Generate payment tokens that represent card information
+- Store and reuse tokens for future payments
+- Avoid handling sensitive PCI-regulated card data
+
+## Card Tokenization Concept
+
+Tokenization is the process of converting sensitive card data into a secure token that can be used for payments:
+
+<Steps>
+  <Step title="Customer Enters Card">
+    Customer enters their card details in the SDK's native UI
+  </Step>
+  <Step title="Card Data Secured">
+    Card data is securely transmitted to PayMaya servers
+  </Step>
+  <Step title="Token Generated">
+    PayMaya generates a payment token representing the card
+  </Step>
+  <Step title="Token Returned">
+    The token is returned to your app (no card data is stored locally)
+  </Step>
+  <Step title="Token Used for Payments">
+    Use the token to process payments via your backend
+  </Step>
+</Steps>
+
+## Key Features
+
+- **Native UI**: Built-in card input activity with validation
+- **PCI Compliance**: No sensitive card data touches your app or servers
+- **Secure Tokenization**: Card details converted to secure tokens
+- **Token Reuse**: Store tokens for returning customers
+- **Card Management**: Build better experiences for repeat customers
+- **Custom Branding**: Customize logo and styling
+
+## Use Cases
+
+### One-Click Payments
+
+Store tokens for returning customers to enable quick checkout:
+
+```kotlin
+// First time: tokenize card
+val token = tokenizeNewCard()
+saveToken(userId, token)
+
+// Later: use saved token
+val savedToken = getToken(userId)
+processPayment(savedToken)
+```
+
+### Card Management
+
+Allow customers to manage multiple payment cards:
+
+```kotlin
+// Add new card
+val token = payMayaVaultClient.startTokenizeCardActivityForResult(this)
+
+// Store with user account
+cardRepository.addCard(userId, token)
+
+// Display saved cards
+val cards = cardRepository.getCards(userId)
+displayCards(cards)
+```
+
+### Subscription Payments
+
+Tokenize cards for recurring subscription charges:
+
+```kotlin
+// Setup subscription
+val token = tokenizeCard()
+subscriptionService.createSubscription(
+    userId = userId,
+    paymentToken = token,
+    plan = "premium-monthly"
+)
+```
+
+### Guest Checkout with Save Option
+
+Offer guests the option to save cards for future purchases:
+
+```kotlin
+if (user.isGuest && saveCardChecked) {
+    val token = tokenizeCard()
+    // Prompt to create account and save token
+    showCreateAccountDialog(token)
+}
+```
+
+## Vault vs Other Methods
+
+| Feature | Vault | Checkout | Pay With PayMaya |
+|---------|-------|----------|------------------|
+| Payment UI | Native card form | WebView | WebView |
+| Purpose | Card tokenization | Complete payment | Wallet payment |
+| Returns | Payment token | Payment result | Payment result |
+| Card Reuse | Yes (via tokens) | No | No |
+| PCI Compliance | Built-in | Built-in | Built-in |
+| Recurring Use | Yes | No | Yes (Wallet Link) |
+
+## Payment Flow
+
+<Steps>
+  <Step title="Initialize Client">
+    Create a `PayMayaVault` client with your API credentials
+  </Step>
+  <Step title="Start Tokenization">
+    Call `startTokenizeCardActivityForResult()` to launch the native card input UI
+  </Step>
+  <Step title="Customer Enters Card">
+    Customer fills in card number, expiry, CVV in the SDK's secure form
+  </Step>
+  <Step title="Handle Result">
+    Process the tokenization result in `onActivityResult()` using `PayMayaVaultResult`
+  </Step>
+  <Step title="Store Token">
+    Save the `paymentTokenId` to your backend for future use
+  </Step>
+</Steps>
+
+## What You Get
+
+When tokenization succeeds, you receive:
+
+- **paymentTokenId**: The token representing the card
+- **state**: Token state (e.g., "available")
+- **createdAt**: Timestamp when token was created
+- **updatedAt**: Timestamp when token was last updated
+- **issuer**: Card issuer (e.g., "VISA", "MASTERCARD")
+
+<Note>
+You never receive actual card numbers or CVV codes. All sensitive data is handled securely by PayMaya.
+</Note>
+
+## Token Lifecycle
+
+Payment tokens have a specific lifecycle:
+
+1. **Created**: Token is generated after successful card validation
+2. **Available**: Token is ready for use in payment transactions
+3. **Used**: Token has been used for a payment (single-use tokens)
+4. **Expired**: Token has exceeded its validity period
+
+<Warning>
+Payment tokens are typically single-use and valid for a limited time. For recurring payments, you need to create a customer vault card, which is done via server-side API calls after tokenization.
+</Warning>
+
+## When to Use Vault
+
+Use PayMaya Vault when you need:
+
+- Card tokenization for backend payment processing
+- To store customer cards for future use
+- One-click checkout experiences
+- Recurring billing with stored cards
+- PCI-compliant card data handling without certification overhead
+
+**Don't use Vault if:**
+- You need immediate payment processing (use Checkout or Pay With PayMaya instead)
+- You don't need to store or reuse card information
+- You only need one-time payments
+
+## Security & Compliance
+
+Vault handles PCI compliance for you:
+
+- Card data never touches your app or servers
+- Secure transmission using TLS/SSL
+- Tokenization performed on PayMaya secure servers
+- No card data stored locally
+- Compliance with PCI DSS requirements
+
+<Note>
+While Vault handles card data security, you're still responsible for secure storage and handling of payment tokens in your backend.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Card Tokenization" icon="credit-card" href="/vault/card-tokenization">
+    Implement card tokenization in your app
+  </Card>
+  <Card title="Checkout" icon="shopping-cart" href="/checkout/overview">
+    Process immediate payments with Checkout
+  </Card>
+</CardGroup>

@@ -1,0 +1,65 @@
+---
+title: LogLevel
+description: Logging level enumeration for SDK debug output
+---
+
+## Overview
+
+The `LogLevel` enum controls the verbosity of SDK logging, particularly for HTTP requests and responses.
+
+## Definition
+
+```kotlin
+package com.paymaya.sdk.android.common
+
+enum class LogLevel {
+    VERBOSE,
+    DEBUG,
+    INFO,
+    WARN,
+    ERROR,
+    ASSERT
+}
+```
+
+## Values
+
+### VERBOSE
+
+Most detailed logging level. Includes HTTP request and response lines, headers, and bodies.
+
+### DEBUG
+
+Detailed logging for debugging. Includes HTTP request and response lines and headers.
+
+### INFO
+
+Informational logging. Includes HTTP request and response lines.
+
+### WARN
+
+Warning-level logging for potentially problematic situations.
+
+### ERROR
+
+Error-level logging for error conditions.
+
+### ASSERT
+
+Highest severity logging for assertion failures.
+
+## Usage
+
+Set the log level during SDK configuration:
+
+```kotlin
+PayMayaConfig.logLevel = LogLevel.DEBUG
+```
+
+<Warning>
+  Use `VERBOSE` or `DEBUG` levels only during development. Avoid logging sensitive information in production builds.
+</Warning>
+
+## See Also
+
+- [Environment Configuration](/guides/environment-configuration) - Learn how to configure SDK logging

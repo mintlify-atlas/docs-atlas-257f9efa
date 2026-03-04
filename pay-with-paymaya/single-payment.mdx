@@ -1,0 +1,403 @@
+---
+title: "Single Payment Implementation"
+description: "Process one-time payments using PayMaya wallet"
+---
+
+## Overview
+
+Single Payment allows you to process one-time payments using a customer's PayMaya wallet. This is ideal for simple transactions that don't require detailed checkout information.
+
+## Client Initialization
+
+First, create a `PayWithPayMaya` client:
+
+```kotlin
+import com.paymaya.sdk.android.paywithpaymaya.PayWithPayMaya
+import com.paymaya.sdk.android.common.LogLevel
+import com.paymaya.sdk.android.common.PayMayaEnvironment
+
+val payWithPayMayaClient = PayWithPayMaya.newBuilder()
+    .clientPublicKey("your_public_key")
+    .environment(PayMayaEnvironment.SANDBOX)
+    .logLevel(LogLevel.ERROR)
+    .build()
+```
+
+### Configuration Parameters
+
+- **clientPublicKey** (required) - Your PayMaya public API key
+- **environment** (required) - `PayMayaEnvironment.SANDBOX` or `PayMayaEnvironment.PRODUCTION`
+- **logLevel** (optional) - Logging verbosity level
+
+<Note>
+The configuration is identical to Checkout initialization. Refer to the [Checkout Initialization](/checkout/initialization) guide for detailed parameter descriptions.
+</Note>
+
+## Creating a SinglePaymentRequest
+
+Create a request with the payment amount and metadata:
+
+```kotlin
+import com.paymaya.sdk.android.paywithpaymaya.models.SinglePaymentRequest
+import com.paymaya.sdk.android.common.models.RedirectUrl
+import com.paymaya.sdk.android.common.models.TotalAmount
+import org.json.JSONObject
+import java.math.BigDecimal
+
+val request = SinglePaymentRequest(
+    totalAmount = TotalAmount(
+        value = BigDecimal("100.00"),
+        currency = "PHP"
+    ),
+    requestReferenceNumber = "REF-${System.currentTimeMillis()}",
+    redirectUrl = RedirectUrl(
+        success = "http://success.com",
+        failure = "http://failure.com",
+        cancel = "http://cancel.com"
+    ),
+    metadata = JSONObject().apply {
+        put("userId", "12345")
+        put("paymentType", "single")
+    }
+)
+```
+
+### Request Parameters
+
+#### totalAmount (Required)
+
+The transaction amount:
+
+```kotlin
+val totalAmount = TotalAmount(
+    value = BigDecimal("100.00"),  // Payment amount
+    currency = "PHP"                // Currency code
+)
+```
+
+#### requestReferenceNumber (Required)
+
+A unique identifier for this transaction:
+
+```kotlin
+val requestReferenceNumber = "ORDER-${System.currentTimeMillis()}"
+```
+
+<Warning>
+Ensure each transaction has a unique `requestReferenceNumber` to prevent duplicate processing.
+</Warning>
+
+#### redirectUrl (Required)
+
+Redirect URLs for payment completion:
+
+```kotlin
+val redirectUrl = RedirectUrl(
+    success = "https://yourapp.com/success",
+    failure = "https://yourapp.com/failure",
+    cancel = "https://yourapp.com/cancel"
+)
+```
+
+<Note>
+These URLs are required by the API but not used for actual redirects in the Android SDK. Results are returned via `onActivityResult()`.
+</Note>
+
+#### metadata (Optional)
+
+Custom data for tracking:
+
+```kotlin
+val metadata = JSONObject().apply {
+    put("userId", "12345")
+    put("subscriptionId", "sub-789")
+    put("source", "android-app")
+}
+```
+
+## Starting the Payment Flow
+
+Call `startSinglePaymentActivityForResult()` to launch the payment WebView:
+
+```kotlin
+payWithPayMayaClient.startSinglePaymentActivityForResult(this, request)
+```
+
+### Method Signature
+
+```kotlin
+fun startSinglePaymentActivityForResult(
+    activity: Activity,
+    request: SinglePaymentRequest
+)
+```
+
+## Handling Payment Results
+
+Process results in `onActivityResult()`:
+
+```kotlin
+import android.content.Intent
+import com.paymaya.sdk.android.paywithpaymaya.SinglePaymentResult
+
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    payWithPayMayaClient.onActivityResult(requestCode, resultCode, data)?.let { result ->
+        when (result) {
+            is SinglePaymentResult.Success -> {
+                val paymentId = result.paymentId
+                showSuccess("Payment successful! ID: $paymentId")
+            }
+            
+            is SinglePaymentResult.Cancel -> {
+                val paymentId = result.paymentId  // May be null
+                showCancel("Payment canceled")
+            }
+            
+            is SinglePaymentResult.Failure -> {
+                val paymentId = result.paymentId  // May be null
+                val exception = result.exception
+                showError("Payment failed: ${exception.message}")
+            }
+        }
+    }
+}
+```
+
+### Result Types
+
+#### SinglePaymentResult.Success
+
+Payment completed successfully:
+
+```kotlin
+is SinglePaymentResult.Success -> {
+    val paymentId: String = result.paymentId
+    // Save paymentId for reconciliation
+}
+```
+
+**Properties:**
+- `paymentId: String` - Unique identifier for this payment
+
+#### SinglePaymentResult.Cancel
+
+Payment was canceled:
+
+```kotlin
+is SinglePaymentResult.Cancel -> {
+    val paymentId: String? = result.paymentId
+    // Handle cancellation
+}
+```
+
+**Properties:**
+- `paymentId: String?` - Payment ID if available, or `null`
+
+#### SinglePaymentResult.Failure
+
+Payment failed:
+
+```kotlin
+is SinglePaymentResult.Failure -> {
+    val paymentId: String? = result.paymentId
+    val exception: Exception = result.exception
+    // Handle error
+}
+```
+
+**Properties:**
+- `paymentId: String?` - Payment ID if available, or `null`
+- `exception: Exception` - Exception with failure details
+
+## Complete Example
+
+```kotlin
+import android.app.Activity
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
+import com.paymaya.sdk.android.common.LogLevel
+import com.paymaya.sdk.android.common.PayMayaEnvironment
+import com.paymaya.sdk.android.common.models.RedirectUrl
+import com.paymaya.sdk.android.common.models.TotalAmount
+import com.paymaya.sdk.android.paywithpaymaya.PayWithPayMaya
+import com.paymaya.sdk.android.paywithpaymaya.SinglePaymentResult
+import com.paymaya.sdk.android.paywithpaymaya.models.SinglePaymentRequest
+import org.json.JSONObject
+import java.math.BigDecimal
+
+class SinglePaymentActivity : Activity() {
+
+    private val payWithPayMayaClient = PayWithPayMaya.newBuilder()
+        .clientPublicKey("pk-MOfNKu3FmHMVHtjyjG7vhr7vFevRkWxmxYL1Yq6iFk5")
+        .environment(PayMayaEnvironment.SANDBOX)
+        .logLevel(LogLevel.WARN)
+        .build()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Setup UI with payment button
+    }
+
+    private fun startSinglePayment() {
+        val request = SinglePaymentRequest(
+            totalAmount = TotalAmount(
+                value = BigDecimal("100.00"),
+                currency = "PHP"
+            ),
+            requestReferenceNumber = "REF-${System.currentTimeMillis()}",
+            redirectUrl = RedirectUrl(
+                success = "http://success.com",
+                failure = "http://failure.com",
+                cancel = "http://cancel.com"
+            ),
+            metadata = JSONObject().apply {
+                put("userId", "12345")
+            }
+        )
+
+        payWithPayMayaClient.startSinglePaymentActivityForResult(this, request)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        payWithPayMayaClient.onActivityResult(requestCode, resultCode, data)?.let { result ->
+            processSinglePaymentResult(result)
+        }
+    }
+
+    private fun processSinglePaymentResult(result: SinglePaymentResult) {
+        when (result) {
+            is SinglePaymentResult.Success -> {
+                val message = "Payment successful! ID: ${result.paymentId}"
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                Log.i(TAG, message)
+                
+                // Save payment ID, update backend
+                savePaymentId(result.paymentId)
+                navigateToSuccessScreen()
+            }
+
+            is SinglePaymentResult.Cancel -> {
+                val message = "Payment canceled. ID: ${result.paymentId}"
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                Log.w(TAG, message)
+                
+                // Return to previous screen
+                finish()
+            }
+
+            is SinglePaymentResult.Failure -> {
+                val message = "Payment failed: ${result.exception.message}"
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                Log.e(TAG, "Payment failed. ID: ${result.paymentId}", result.exception)
+                
+                // Show error dialog with retry option
+                showErrorDialog(result.exception.message)
+            }
+        }
+    }
+
+    private fun savePaymentId(paymentId: String) {
+        // Save to backend for reconciliation
+    }
+
+    private fun navigateToSuccessScreen() {
+        // Navigate to success screen
+    }
+
+    private fun showErrorDialog(message: String?) {
+        // Show error dialog
+    }
+
+    companion object {
+        private const val TAG = "SinglePaymentActivity"
+    }
+}
+```
+
+## Checking Payment Status
+
+Manually verify payment status:
+
+```kotlin
+import com.paymaya.sdk.android.common.CheckPaymentStatusResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+suspend fun checkPaymentStatus(paymentId: String) {
+    val statusResult = withContext(Dispatchers.IO) {
+        payWithPayMayaClient.checkPaymentStatus(paymentId)
+    }
+    
+    when (statusResult) {
+        is CheckPaymentStatusResult.Success -> {
+            Log.i(TAG, "Status: ${statusResult.status}")
+        }
+        is CheckPaymentStatusResult.Failure -> {
+            Log.e(TAG, "Status check failed: ${statusResult.exception}")
+        }
+        is CheckPaymentStatusResult.Cancel -> {
+            Log.w(TAG, "Status check canceled")
+        }
+    }
+}
+```
+
+<Warning>
+The `checkPaymentStatus()` method is synchronous. Call it from a background thread or use coroutines.
+</Warning>
+
+## Best Practices
+
+### Unique Reference Numbers
+
+```kotlin
+// Use timestamp + random for uniqueness
+val requestReferenceNumber = "PAY-${System.currentTimeMillis()}-${UUID.randomUUID()}"
+```
+
+### Save Payment ID
+
+```kotlin
+is SinglePaymentResult.Success -> {
+    // Always save payment ID for reconciliation
+    saveToDatabase(result.paymentId)
+    notifyBackend(result.paymentId)
+}
+```
+
+### Handle All Result Types
+
+```kotlin
+// Always handle Success, Cancel, and Failure
+when (result) {
+    is SinglePaymentResult.Success -> { /* ... */ }
+    is SinglePaymentResult.Cancel -> { /* ... */ }
+    is SinglePaymentResult.Failure -> { /* ... */ }
+}
+```
+
+### Provide Retry Options
+
+```kotlin
+is SinglePaymentResult.Failure -> {
+    showDialog(
+        title = "Payment Failed",
+        message = exception.message,
+        positiveButton = "Retry" to { startSinglePayment() },
+        negativeButton = "Cancel" to { finish() }
+    )
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Wallet Link" icon="link" href="/pay-with-paymaya/wallet-link">
+    Set up recurring payments with wallet linking
+  </Card>
+  <Card title="Vault" icon="lock" href="/vault/overview">
+    Learn about card tokenization
+  </Card>
+</CardGroup>

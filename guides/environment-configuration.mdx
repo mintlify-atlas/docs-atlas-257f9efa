@@ -1,0 +1,151 @@
+---
+title: Environment Configuration
+description: Learn how to configure the PayMaya Android SDK for SANDBOX and PRODUCTION environments
+---
+
+The PayMaya Android SDK supports two environments for testing and production deployments. Proper environment configuration ensures that your application connects to the correct PayMaya servers.
+
+## Environment Types
+
+The SDK provides two environment options through the `PayMayaEnvironment` enum:
+
+- **SANDBOX** - For development and testing
+- **PRODUCTION** - For live transactions
+
+## Configuring Environment
+
+Set the environment when building your client instance using the `.environment()` builder method.
+
+### Checkout Client
+
+```kotlin
+val payMayaCheckoutClient = PayMayaCheckout.newBuilder()
+    .clientPublicKey("your_sandbox_public_key")
+    .environment(PayMayaEnvironment.SANDBOX)
+    .logLevel(LogLevel.ERROR)
+    .build()
+```
+
+### Pay With PayMaya Client
+
+```kotlin
+val payWithPayMayaClient = PayWithPayMaya.newBuilder()
+    .clientPublicKey("your_sandbox_public_key")
+    .environment(PayMayaEnvironment.SANDBOX)
+    .logLevel(LogLevel.ERROR)
+    .build()
+```
+
+### Vault Client
+
+```kotlin
+val payMayaVaultClient = PayMayaVault.newBuilder()
+    .clientPublicKey("your_sandbox_public_key")
+    .environment(PayMayaEnvironment.SANDBOX)
+    .logLevel(LogLevel.ERROR)
+    .build()
+```
+
+## API Keys
+
+<Warning>
+Use different API keys for each environment. Never use production keys in sandbox or vice versa.
+</Warning>
+
+Each environment requires its own set of API keys:
+
+- **Sandbox Keys** - Obtained from the PayMaya Developer Portal for testing
+- **Production Keys** - Obtained after your application is approved for production use
+
+```kotlin
+// Example: Managing keys per environment
+val apiKey = if (BuildConfig.DEBUG) {
+    "pk-test-sandbox-key-here"  // Sandbox key
+} else {
+    "pk-live-production-key-here"  // Production key
+}
+
+val environment = if (BuildConfig.DEBUG) {
+    PayMayaEnvironment.SANDBOX
+} else {
+    PayMayaEnvironment.PRODUCTION
+}
+
+val payMayaCheckoutClient = PayMayaCheckout.newBuilder()
+    .clientPublicKey(apiKey)
+    .environment(environment)
+    .logLevel(LogLevel.ERROR)
+    .build()
+```
+
+## Log Levels
+
+Configure logging levels based on your environment to help with debugging:
+
+| Log Level | Description | Recommended Use |
+|-----------|-------------|------------------|
+| `VERBOSE` | HTTP request/response lines, headers, and bodies | Development only |
+| `DEBUG` | HTTP request/response lines and headers | Development/Testing |
+| `INFO` | HTTP request/response lines | Testing |
+| `WARN` | Warnings only | Production |
+| `ERROR` | Errors only | Production |
+| `ASSERT` | Assertions only | Production |
+
+<Tip>
+Use `LogLevel.VERBOSE` or `LogLevel.DEBUG` during development to inspect API requests and responses, but switch to `LogLevel.ERROR` or `LogLevel.WARN` for production builds.
+</Tip>
+
+```kotlin
+val logLevel = if (BuildConfig.DEBUG) {
+    LogLevel.DEBUG  // Verbose logging in development
+} else {
+    LogLevel.ERROR  // Only errors in production
+}
+
+val payMayaCheckoutClient = PayMayaCheckout.newBuilder()
+    .clientPublicKey(apiKey)
+    .environment(environment)
+    .logLevel(logLevel)
+    .build()
+```
+
+## Environment Differences
+
+### SANDBOX Environment
+
+- **Purpose**: Development and testing
+- **Payment Processing**: Simulated (no real money)
+- **Test Cards**: Use [PayMaya test credit cards](/guides/testing-sandbox)
+- **API Keys**: Sandbox/test keys from Developer Portal
+- **Base URL**: Sandbox API endpoints
+
+### PRODUCTION Environment
+
+- **Purpose**: Live transactions
+- **Payment Processing**: Real money transactions
+- **Test Cards**: Not applicable (real cards only)
+- **API Keys**: Production keys (requires approval)
+- **Base URL**: Production API endpoints
+
+<Note>
+The SDK automatically uses the correct API endpoints based on the configured environment. You don't need to specify base URLs manually.
+</Note>
+
+## Best Practices
+
+1. **Never hardcode API keys** - Use build configuration or environment variables
+2. **Separate builds** - Use different build variants (debug/release) for different environments
+3. **Test thoroughly in sandbox** - Complete all testing before switching to production
+4. **Secure production keys** - Store production keys securely and never commit them to version control
+5. **Monitor logs** - Adjust log levels appropriately for each environment
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing in Sandbox" href="/guides/testing-sandbox" icon="vial">
+    Learn how to test payments using the sandbox environment
+  </Card>
+  <Card title="Error Handling" href="/guides/error-handling" icon="triangle-exclamation">
+    Handle exceptions and errors in your integration
+  </Card>
+</CardGroup>
