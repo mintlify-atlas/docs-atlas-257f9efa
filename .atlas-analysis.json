@@ -1,0 +1,117 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "PayMaya Android SDK v2",
+  "projectDescription": "Android SDK for integrating PayMaya payment services including Checkout, Pay With PayMaya, and Vault tokenization.",
+  "theme": "palm",
+  "primaryColor": "#00D377",
+  "lightColor": "#00FF8C",
+  "darkColor": "#00A35C",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Payment Methods",
+            "pages": [
+              "checkout/overview",
+              "checkout/initialization",
+              "checkout/making-payments",
+              "checkout/handling-results",
+              "pay-with-paymaya/overview",
+              "pay-with-paymaya/single-payment",
+              "pay-with-paymaya/wallet-link",
+              "vault/overview",
+              "vault/card-tokenization"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/environment-configuration",
+              "guides/checking-payment-status",
+              "guides/error-handling",
+              "guides/testing-sandbox"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Checkout",
+            "pages": [
+              "api/checkout/paymaya-checkout",
+              "api/checkout/checkout-request",
+              "api/checkout/checkout-result",
+              "api/checkout/models"
+            ]
+          },
+          {
+            "group": "Pay With PayMaya",
+            "pages": [
+              "api/paywithpaymaya/pay-with-paymaya",
+              "api/paywithpaymaya/single-payment-request",
+              "api/paywithpaymaya/wallet-link-request",
+              "api/paywithpaymaya/results"
+            ]
+          },
+          {
+            "group": "Vault",
+            "pages": [
+              "api/vault/paymaya-vault",
+              "api/vault/vault-result"
+            ]
+          },
+          {
+            "group": "Common",
+            "pages": [
+              "api/common/environment",
+              "api/common/log-level",
+              "api/common/payment-status",
+              "api/common/exceptions"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Checkout payment flow with WebView integration",
+    "Pay With PayMaya for single payments and wallet linking",
+    "Vault card tokenization for secure payment tokens",
+    "Support for sandbox and production environments",
+    "Automatic payment status checking",
+    "Comprehensive error handling and result callbacks"
+  ],
+  "publicApiSurface": [
+    "PayMayaCheckout.newBuilder()",
+    "PayMayaCheckout.startCheckoutActivityForResult()",
+    "PayMayaCheckout.onActivityResult()",
+    "PayMayaCheckout.checkPaymentStatus()",
+    "PayWithPayMaya.newBuilder()",
+    "PayWithPayMaya.startSinglePaymentActivityForResult()",
+    "PayWithPayMaya.startCreateWalletLinkActivityForResult()",
+    "PayWithPayMaya.onActivityResult()",
+    "PayWithPayMaya.checkPaymentStatus()",
+    "PayMayaVault.newBuilder()",
+    "PayMayaVault.startTokenizeCardActivityForResult()",
+    "PayMayaVault.onActivityResult()",
+    "CheckoutRequest",
+    "SinglePaymentRequest",
+    "CreateWalletLinkRequest",
+    "PayMayaEnvironment.SANDBOX",
+    "PayMayaEnvironment.PRODUCTION",
+    "LogLevel",
+    "PaymentStatus"
+  ]
+}
